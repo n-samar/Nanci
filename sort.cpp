@@ -26,6 +26,32 @@ size_t snake_to_index(size_t i, size_t N, size_t M) {
     return M*i_j+i_k;
 }
 
+// j == N specifies row
+// k == M specifies column
+void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
+    assert(a_j+height <= a_height);
+    assert(a_k+width <= a_width);
+    for (size_t j = a_j; j < a_j+height; j++)
+        for (size_t k = a_k; k < a_k+width; k++) {
+            b[(j-a_j)*width + (k-a_k)] = a[j*a_width + k];
+            assert((j-a_j)*width+(k-a_k) < height*width);
+            assert((j*a_width) + k < a_height*a_width);
+        }
+}
+
+// j == N specifies row
+// k == M specifies column
+void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
+    assert(a_j+height <= a_height);
+    assert(a_k+width <= a_width);
+    for (size_t j = a_j; j < a_j+height; j++)
+        for (size_t k = a_k; k < a_k+width; k++) {
+            a[j*a_width + k] = b[(j-a_j)*width + (k-a_k)];
+            assert((j-a_j)*width+(k-a_k) < height*width);
+            assert((j*a_width) + k < a_height*a_width);          
+        }
+}
+
 void assert_sorted_snake(int *a, size_t N, size_t M) {
     for (size_t i = 0; i < N; i++) {
         for (size_t j = 0; j < M; j++) {
@@ -316,60 +342,34 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 
 
     // M2
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle_reverse(a+j*M, M, cycle);
-        else
-            perfect_shuffle_reverse(a+j*M, M, cycle);
-    }
-
+    size_t temp;
+    for (int j = 0; j < N; j++) 
+        temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    cycle = temp;
+    
     // M3
 
     int *b = new int[N*M/2];
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k];
-        }
-    }
 
+    make_submatrix(a, b, 0, 0, N, M, N, M/2);
     Mf(b, N, M/2, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N, M/2);
 
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k] = b[j*M/2+k];
-        }
-    }
-
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k+M/2];
-        }
-    }
-
+    make_submatrix(a, b, 0, M/2, N, M, N, M/2);
     cycle = Mf(b, N, M/2, cycle);
-
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k+M/2] = b[j*M/2+k];
-        }
-    }
+    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2);
 
     delete[] b;
 
     // M4
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle(a+j*M, M, cycle);
-        else
-            perfect_shuffle(a+j*M, M, cycle);
-    }
+    for (int j = 0; j < N; j++)
+            temp = perfect_shuffle(a+j*M, M, cycle);
+    cycle = temp;
 
     // M5
-    for (int j = 1; j < N; j+=2) {
-        for (int k = 0; k < M-1; k+=2) {
+    for (int j = 1; j < N; j+=2)
+        for (int k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
-        }
-    }
     cycle++;
 
     // M6
@@ -384,84 +384,52 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 // j == N specifies row
 // k == M specifies column
 size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
-  // cout << "two_s_way_M(N == " << N << ", M == " << M << ", s == " << s << ")" << endl;
     if (M == 2 && N > s) {
         cycle = M_j_two_s(a, N, s, cycle);
-	// cout << "hindustan" << endl;
-	assert_sorted_snake(a, N, M);
+        assert_sorted_snake(a, N, M);
         return cycle;
     } else if (M == 2 && N == s) {
         cycle = odd_even_transposition_sort(a, N, 2, cycle);
-	// cout << "hindustan" << endl;
-	assert_sorted_snake(a, N, M);
+        assert_sorted_snake(a, N, M);
         return cycle;
     }
 
     // M1 prime
-    if (N > s) {
-        for (int j = 1; j < N; j+=2) {
-            for (int k = 0; k < M-1; k+=2) {
+    if (N > s)
+        for (int j = 1; j < N; j+=2)
+            for (int k = 0; k < M-1; k+=2)
                 S(a, j*M+k, j*M+k+1, cycle);
-            }
-        }
-    }
     cycle++;
 
     // M2
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle_reverse(a+j*M, M, cycle);
-        else
-            perfect_shuffle_reverse(a+j*M, M, cycle);
-    }
+    size_t temp;
+    for (int j = 0; j < N; j++)
+        temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    cycle = temp;
 
     // M3
-
     int *b = new int[N*M/2];
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k];
-        }
-    }
 
+    make_submatrix(a, b, 0, 0, N, M, N, M/2);
     two_s_way_M(b, N, M/2, s, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N, M/2);
 
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k] = b[j*M/2+k];
-        }
-    }
 
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k+M/2];
-        }
-    }
-
+    make_submatrix(a, b, 0, M/2, N, M, N, M/2);
     cycle = two_s_way_M(b, N, M/2, s, cycle);
-
-    for (int j = 0; j < N; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k+M/2] = b[j*M/2+k];
-        }
-    }
-
+    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2);
+    
     delete[] b;
 
     // M4
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle(a+j*M, M, cycle);
-        else
-            perfect_shuffle(a+j*M, M, cycle);
-    }
-
+    for (int j = 0; j < N; j++)
+        temp = perfect_shuffle(a+j*M, M, cycle);
+    cycle = temp;
+        
     // M5
-    for (int j = 1; j < N; j+=2) {
-        for (int k = 0; k < M-1; k+=2) {
+    for (int j = 1; j < N; j+=2)
+        for (int k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
-        }
-    }
     cycle++;
 
     // M6 prime
@@ -469,94 +437,53 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
         for (int i = j%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
     cycle+=(2*s);
-    // cout << "two_s_way_M(N == " << N << ", M == " << M << ", s == " << s << "); OUTPUT" << endl;
-    // print_matrix(a, N, M);
-    // cout << "---" << endl;
     assert_sorted_snake(a, N, M);
     return cycle;
 }
 
-// j == N specifies row
-// k == M specifies column
-void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
-  assert(a_j+height <= a_height);
-  assert(a_k+width <= a_width);
-  for (size_t j = a_j; j < a_j+height; j++)
-    for (size_t k = a_k; k < a_k+width; k++)
-      b[(j-a_j)*width + (k-a_k)] = a[j*a_width + k];
-}
-
-// j == N specifies row
-// k == M specifies column
-void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
-  assert(a_j+height <= a_height);
-  assert(a_k+width <= a_width);
-  for (size_t j = a_j; j < a_j+height; j++)
-    for (size_t k = a_k; k < a_k+width; k++)
-      a[j*a_width + k] = b[(j-a_j)*width + (k-a_k)];
-}
 
 // j == N specifies row
 // k == M specifies column
 size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
-  //cout << "M_prime_prime(N == " << N << ", M == " << M << ", s == " << s << "); INPUT:" << endl;
-  //print_matrix(a, N, M);
-
-  if (s == 1) {
-    return cycle;
-  }
-  if (s == 2) {
-    cycle = two_s_way_M(a, N, M, s, cycle);
-    return cycle;
-  }
+    if (s == 1)
+        return cycle;
+    if (s == 2) {
+        cycle = two_s_way_M(a, N, M, s, cycle);
+        return cycle;
+    }
     if (M == s) {
-      // N1
-      size_t temp;
-      for (size_t count = 2; count < s; count*=2) {
-	int *b = new int[count*s];
-	for (size_t j_sub = 0; j_sub < N; j_sub+=N/s) {
-	  for (size_t k_sub = 0; k_sub < M; k_sub+=count) {
-	    make_submatrix(a, b, j_sub, k_sub, N, M, N/s, count);
-	    temp = Mf(b, count, s, cycle);
-	    copy_back_matrix(a, b, j_sub, k_sub, N, M, N/s, count);
-	  }
-	}
-	delete[] b;
-	cycle = temp;
-      }
+        // N1
+        size_t temp;
+        for (size_t count = 2; count < s; count*=2) {
+            int *b = new int[count*N/s];
+            for (size_t j_sub = 0; j_sub < N; j_sub+=N/s) {
+                for (size_t k_sub = 0; k_sub < M; k_sub+=count) {
+                    make_submatrix(a, b, j_sub, k_sub, N, M, N/s, count);
+                    temp = Mf(b, N/s, count, cycle);
+                    copy_back_matrix(a, b, j_sub, k_sub, N, M, N/s, count);
+                }
+            }
+            delete[] b;
+            cycle = temp;
+        }
 
-      // N2
-      cycle = two_s_way_M(a, N, M, s, cycle);
-      //cout << "M_prime_prime(N == " << N << ", M == " << M << ", s == " << s << "); OUTPUT:" << endl;
-      //print_matrix(a, N, M);
-      assert_sorted_snake(a, N, M);
-      return cycle;
+        // N2
+        cycle = two_s_way_M(a, N, M, s, cycle);
+        assert_sorted_snake(a, N, M);
+        return cycle;
     }
 
-    if (N > s) {
-      // M1 prime prime
-      for (int j = 1; j < N; j+=2) {
-	for (int k = 0; k < M-1; k+=2) {
-	  S(a, j*M+k, j*M+k+1, cycle);
-	}
-      }
-      cycle++;
-    }
-
-    //cout << "---M1" << endl;
-    //print_matrix(a, N, M);
+    // M1 prime prime
+    for (int j = 1; j < N; j+=2)
+        for (int k = 0; k < M-1; k+=2)
+            S(a, j*M+k, j*M+k+1, cycle);
+    cycle++;
 
     // M2
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle_reverse(a+j*M, M, cycle);
-        else
-            perfect_shuffle_reverse(a+j*M, M, cycle);
-    }
-
-    //cout << "---M2" << endl;
-    //print_matrix(a, N, M);
-
+    size_t temp;
+    for (int j = 0; j < N; j++)
+            temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    cycle = temp;
 
     // M3
     int *b = new int[N*M/2];
@@ -571,45 +498,26 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 
     delete[] b;
 
-    //cout << "M_prime_prime(N == " << N << ", M == " << M << ", s == " << s << "); M3:" << endl;
-  //cout << "---M3" << endl;
-  //print_matrix(a, N, M);
-
-
     // M4
-    for (int j = 0; j < N; j++) {
-        if (j == N-1)
-            cycle = perfect_shuffle(a+j*M, M, cycle);
-        else
-            perfect_shuffle(a+j*M, M, cycle);
-    }
-
-    //cout << "---M4" << endl;
-    //print_matrix(a, N, M);
-
+    for (int j = 0; j < N; j++)
+        temp = perfect_shuffle(a+j*M, M, cycle);
+    cycle = temp;
+    
     // M5
-    for (int j = 1; j < N; j+=2) {
-        for (int k = 0; k < M-1; k+=2) {
+    for (int j = 1; j < N; j+=2)
+        for (int k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
-        }
-    }
     cycle++;
-
-    //cout << "---M5" << endl;
-    //print_matrix(a, N, M);
 
     // M6 prime prime
     for (int j = 1; j < s*s+2; j+=1)
         for (int i = j%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
     cycle+=(s*s-1);
-
-    //cout << "M_prime_prime(N == " << N << ", M == " << M << ", s == " << s << "); OUTPUT:" << endl;
-    //print_matrix(a, N, M);
+    
     assert_sorted_snake(a, N, M);
     return cycle;
 }
-
 
 
 void init_rand_sorted_snake(int *a, size_t N, size_t M) {
@@ -618,111 +526,61 @@ void init_rand_sorted_snake(int *a, size_t N, size_t M) {
         a[snake_to_index(i, N, M)] = a[snake_to_index(i-1, N, M)] + rand()%100;
 }
 
+
 size_t find_nearest_pow_2(double cbrt) {
-  size_t res = (size_t)floor(log2(cbrt));
-  if (fabs(pow(pow(2.0, res), 3) - cbrt) > fabs(pow(pow(2, res+1), 3) - cbrt))
-    res++;
-  if (res == 0)
-    res++;
-  return pow(2.0, res);
+    size_t res = (size_t)floor(log2(cbrt));
+    if (fabs(pow(pow(2.0, res), 3) - cbrt) > fabs(pow(pow(2, res+1), 3) - cbrt))
+        res++;
+    if (res == 0)
+        res++;
+    return pow(2.0, res);
 }
 
 // j == N specifies row
 // k == M specifies column
 size_t sort_6n(int *a, size_t N, size_t M, size_t cycle) {
-  if (N == 1 && M == 1)
-    return cycle;
+    if (N == 1 && M == 1)
+        return cycle;
 
-  size_t s = find_nearest_pow_2(cbrt(N));
+    size_t s = find_nearest_pow_2(cbrt(N));
 
-  //cout << "s: " << s << endl;
-
-  size_t temp;
-  int *b = new int[N/s*M/s];
-  for (size_t j = 0; j < N; j+=(N/s)) {
-    for (size_t k = 0; k < M; k+=(M/s)) {
-      make_submatrix(a, b, j, k, N, M, N/s, M/s);
-      temp = sort_6n(b, N/s, M/s, cycle);
-      copy_back_matrix(a, b, j, k, N, M, N/s, M/s);
+    size_t temp;
+    for (size_t j = 0; j < N; j+=(N/s)) {
+        for (size_t k = 0; k < M; k+=(M/s)) {
+            int *b = new int[N/s*M/s];        
+            make_submatrix(a, b, j, k, N, M, N/s, M/s);
+            temp = sort_6n(b, N/s, M/s, cycle);
+            copy_back_matrix(a, b, j, k, N, M, N/s, M/s);
+            delete[] b;      
+        }
     }
-  }
-  delete[] b;
-  cycle = temp;
+    cycle = temp;
 
-  cycle = M_prime_prime(a, N, M, s, cycle);
-  //  cout << "---sort_6n OUTPUT:" << endl;
-  //print_matrix(a, N, M);
-  //cout << "---" << endl;
-  assert_sorted_snake(a, N, M);
-  return cycle;
+    cycle = M_prime_prime(a, N, M, s, cycle);
+    assert_sorted_snake(a, N, M);
+    return cycle;
 }
 
 size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
     if (N == 1 && M == 1)
         return cycle;
-    int *b = new int[N*M/4];
+    int *b = new int[N/2*M/2];
 
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k];
-        }
-    }
-
+    make_submatrix(a, b, 0, 0, N, M, N/2, M/2);
     sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N/2, M/2;)
 
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k] = b[j*M/2+k];
-        }
-    }
-
-    // --------------------
-
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[j*M+k+M/2];
-        }
-    }
-
+    make_submatrix(a, b, 0, M/2, N, M, N/2, M/2);
     sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, 0, M/2, N, M, N/2, M/2);
 
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[j*M+k+M/2] = b[j*M/2+k];
-        }
-    }
-
-    // --------------------
-
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[(j+N/2)*M+k];
-        }
-    }
-
+    make_submatrix(a, b, N/2, 0, N, M, N/2, M/2);
     sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, N/2, 0, N, M, N/2, M/2);
 
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[(j+N/2)*M+k] = b[j*M/2+k];
-        }
-    }
-
-    // --------------------
-
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            b[j*M/2+k] = a[(j+N/2)*M+M/2+k];
-        }
-    }
-
+    make_submatrix(a, b, N/2, M/2, N, M, N/2, M/2);
     cycle = sort_12n(b, N/2, M/2, cycle);
-
-    for (int j = 0; j < N/2; j++) {
-        for (int k = 0; k < M/2; k++) {
-            a[(j+N/2)*M+M/2+k] = b[j*M/2+k];
-        }
-    }
+    copy_back_matrix(a, b, N/2, M/2, N, M, N/2, M/2);        
 
     delete[] b;
 
@@ -732,26 +590,26 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 
 int main() {
 
-  clock_t prev = clock();
-  for (size_t z = 2; z < 16*2048; z*=2) {
-    size_t N = z;
-    size_t M = z;
-    int *a = new int[N*M];
-    init_rand(a, N*M);
-    size_t cycle = sort_6n(a, N, M, 0);
-    int *b = new int[N*M];
-    make_submatrix(a, b, 0, 0, N, M, N, M);
-    assert_sorted_snake(a, N, M);
-    sort(a, a+N*M);
-    sort(b, b+N*M);
-    for (size_t i = 0; i < N*M; i++)
-      assert(a[i] == b[i]);
-    delete[] a;
-    delete[] b;
-    time_t elapsed_time = clock()-prev;
-    cout << "sqrt(N) == " << N << "; cycles == " << cycle
-	 << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
-    prev = clock();
-  }
-  return 0;
+    clock_t prev = clock();
+    for (size_t z = 2; z < 16*2048; z*=2) {
+        size_t N = z;
+        size_t M = z;
+        int *a = new int[N*M];
+        init_rand(a, N*M);
+        size_t cycle = sort_6n(a, N, M, 0);
+        int *b = new int[N*M];
+        make_submatrix(a, b, 0, 0, N, M, N, M);
+        assert_sorted_snake(a, N, M);
+        sort(a, a+N*M);
+        sort(b, b+N*M);
+        for (size_t i = 0; i < N*M; i++)
+            assert(a[i] == b[i]);
+        delete[] a;
+        delete[] b;
+        time_t elapsed_time = clock()-prev;
+        cout << "sqrt(N) == " << N << "; cycles == " << cycle
+             << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
+        prev = clock();
+    }
+    return 0;
 }
