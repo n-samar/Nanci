@@ -568,7 +568,7 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 
     make_submatrix(a, b, 0, 0, N, M, N/2, M/2);
     sort_12n(b, N/2, M/2, cycle);
-    copy_back_matrix(a, b, 0, 0, N, M, N/2, M/2;)
+    copy_back_matrix(a, b, 0, 0, N, M, N/2, M/2);
 
     make_submatrix(a, b, 0, M/2, N, M, N/2, M/2);
     sort_12n(b, N/2, M/2, cycle);
@@ -596,7 +596,7 @@ int main() {
         size_t M = z;
         int *a = new int[N*M];
         init_rand(a, N*M);
-        size_t cycle = sort_6n(a, N, M, 0);
+        size_t cycle = sort_12n(a, N, M, 0);
         int *b = new int[N*M];
         make_submatrix(a, b, 0, 0, N, M, N, M);
         assert_sorted_snake(a, N, M);
