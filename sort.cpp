@@ -1,4 +1,3 @@
-  
 #include <iomanip>
 #include <math.h>
 #include <iostream>
@@ -56,15 +55,34 @@ void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, siz
 
 // j == N specifies row
 // k == M specifies column
-void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
+void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width, size_t cycle_low, size_t cycle_high) {
     assert(a_j+height <= a_height);
     assert(a_k+width <= a_width);
-    for (size_t j = a_j; j < a_j+height; j++)
+    for (size_t j = a_j; j < a_j+height; j++) {
         for (size_t k = a_k; k < a_k+width; k++) {
             a[j*a_width + k] = b[(j-a_j)*width + (k-a_k)];
             assert((j-a_j)*width+(k-a_k) < height*width);
             assert((j*a_width) + k < a_height*a_width);          
         }
+    }
+
+    /*
+    if (RECORD && (a_j != 0 || a_k != 0)) {
+        for (size_t cyc = cycle_low; cyc < cycle_high; cyc++) {
+            for (auto & elem : inst_map[cyc]) {
+                size_t src_j = elem.src/a_width;
+                size_t src_k = elem.src%a_width;
+                if (src_j < height && src_k < width) {
+                    size_t dst_j = elem.dst/a_width;
+                    size_t dst_k = elem.dst%a_width;
+                    inst_map[cyc].push_back((struct inst) {elem.is_CAS, elem.cycle, 
+                                            (a_j+src_j)*a_width+src_k+a_k, 
+                                            (a_j+dst_j)*a_width+dst_k+a_k});
+                }
+            }
+        }
+    }
+    */
 }
 
 void assert_sorted_snake(int *a, size_t N, size_t M) {
@@ -323,14 +341,16 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
 
     // J2
     int *b = new int[j];
+
     make_submatrix(a, b, 0, 0, j, 2, j, 1);
-    odd_even_transposition_sort(b, j, 1, cycle);
-    copy_back_matrix(a, b, 0, 0, j, 2, j, 1);
+    size_t temp = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 0, j, 2, j, 1, cycle, temp);
 
     make_submatrix(a, b, 0, 1, j, 2, j, 1);
-    cycle = odd_even_transposition_sort(b, j, 1, cycle);
-    copy_back_matrix(a, b, 0, 1, j, 2, j, 1);
-    
+    temp = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 1, j, 2, j, 1, cycle, temp);
+    cycle = temp;
+
     delete[] b;
     
     // J3
@@ -362,13 +382,14 @@ size_t M_j_two(int *a, size_t j, size_t cycle) {
     // J2
     int *b = new int[j];
     make_submatrix(a, b, 0, 0, j, 2, j, 1);
-    odd_even_transposition_sort(b, j, 1, cycle);
-    copy_back_matrix(a, b, 0, 0, j, 2, j, 1);
+    size_t temp = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 0, j, 2, j, 1, cycle, temp);
 
     make_submatrix(a, b, 0, 1, j, 2, j, 1);
-    cycle = odd_even_transposition_sort(b, j, 1, cycle);
-    copy_back_matrix(a, b, 0, 1, j, 2, j, 1);
-    
+    temp = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 1, j, 2, j, 1, cycle, temp);
+    cycle = temp;
+
     delete[] b;
 
     // J3
@@ -412,18 +433,19 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
     int *b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
-    Mf(b, N, M/2, cycle);
-    copy_back_matrix(a, b, 0, 0, N, M, N, M/2);
+    temp = Mf(b, N, M/2, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N, M/2, cycle, temp);
 
     make_submatrix(a, b, 0, M/2, N, M, N, M/2);
-    cycle = Mf(b, N, M/2, cycle);
-    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2);
+    temp = Mf(b, N, M/2, cycle);
+    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2, cycle, temp);
+    cycle = temp;
 
     delete[] b;
 
     // M4
     for (size_t j = 0; j < N; j++)
-            temp = perfect_shuffle(a+j*M, M, cycle);
+        temp = perfect_shuffle(a+j*M, M, cycle);
     cycle = temp;
 
     // M5
@@ -472,14 +494,14 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     int *b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
-    two_s_way_M(b, N, M/2, s, cycle);
-    copy_back_matrix(a, b, 0, 0, N, M, N, M/2);
+    temp = two_s_way_M(b, N, M/2, s, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N, M/2, cycle, temp);
 
 
     make_submatrix(a, b, 0, M/2, N, M, N, M/2);
-    cycle = two_s_way_M(b, N, M/2, s, cycle);
-    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2);
-    
+    temp = two_s_way_M(b, N, M/2, s, cycle);
+    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2, cycle, temp);
+    cycle = temp;
     delete[] b;
 
     // M4
@@ -523,7 +545,7 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
                 for (size_t k_sub = 0; k_sub < M; k_sub+=count) {
                     make_submatrix(a, b, j_sub, k_sub, N, M, N/s, count);
                     temp = Mf(b, N/s, count, cycle);
-                    copy_back_matrix(a, b, j_sub, k_sub, N, M, N/s, count);
+                    copy_back_matrix(a, b, j_sub, k_sub, N, M, N/s, count, cycle, temp);
                 }
             }
             delete[] b;
@@ -552,12 +574,13 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     int *b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
-    M_prime_prime(b, N, M/2, s, cycle);
-    copy_back_matrix(a, b, 0, 0, N, M, N, M/2);
+    temp = M_prime_prime(b, N, M/2, s, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N, M/2, cycle, temp);
 
     make_submatrix(a, b, 0, M/2, N, M, N, M/2);
-    cycle = M_prime_prime(b, N, M/2, s, cycle);
-    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2);
+    temp = M_prime_prime(b, N, M/2, s, cycle);
+    copy_back_matrix(a, b, 0, M/2, N, M, N, M/2, cycle, temp);
+    cycle = temp;
 
     delete[] b;
 
@@ -615,7 +638,7 @@ size_t sort_6n(int *a, size_t N, size_t M, size_t cycle) {
             int *b = new int[N/s*M/s];        
             make_submatrix(a, b, j, k, N, M, N/s, M/s);
             temp = sort_6n(b, N/s, M/s, cycle);
-            copy_back_matrix(a, b, j, k, N, M, N/s, M/s);
+            copy_back_matrix(a, b, j, k, N, M, N/s, M/s, cycle, temp);
             delete[] b;      
         }
     }
@@ -631,21 +654,24 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
         return cycle;
     int *b = new int[N/2*M/2];
 
+    size_t temp;
+
     make_submatrix(a, b, 0, 0, N, M, N/2, M/2);
-    sort_12n(b, N/2, M/2, cycle);
-    copy_back_matrix(a, b, 0, 0, N, M, N/2, M/2);
+    temp = sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, 0, 0, N, M, N/2, M/2, cycle, temp);
 
     make_submatrix(a, b, 0, M/2, N, M, N/2, M/2);
-    sort_12n(b, N/2, M/2, cycle);
-    copy_back_matrix(a, b, 0, M/2, N, M, N/2, M/2);
+    temp = sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, 0, M/2, N, M, N/2, M/2, cycle, temp);
 
     make_submatrix(a, b, N/2, 0, N, M, N/2, M/2);
-    sort_12n(b, N/2, M/2, cycle);
-    copy_back_matrix(a, b, N/2, 0, N, M, N/2, M/2);
+    temp = sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, N/2, 0, N, M, N/2, M/2, cycle, temp);
 
     make_submatrix(a, b, N/2, M/2, N, M, N/2, M/2);
-    cycle = sort_12n(b, N/2, M/2, cycle);
-    copy_back_matrix(a, b, N/2, M/2, N, M, N/2, M/2);        
+    temp = sort_12n(b, N/2, M/2, cycle);
+    copy_back_matrix(a, b, N/2, M/2, N, M, N/2, M/2, cycle, temp);        
+    cycle = temp;
 
     delete[] b;
 
