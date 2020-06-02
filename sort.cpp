@@ -594,7 +594,7 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 int main() {
 
     clock_t prev = clock();
-    for (size_t z = 2; z < 16*2048; z*=2) {
+    for (size_t z = 256; z < 512; z*=2) {
         size_t N = z;
         size_t M = z;
         int *a = new int[N*M];

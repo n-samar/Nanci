@@ -4,4 +4,6 @@ all:
 	g++ $(flags) -std=c++11 sort.cpp -pthread -O3 -o sort
 
 gdb:
-	g++ $(flags) -g -std=c++11 sort.cpp -pthread -o sort_gdb
+	g++ $(flags) -g -std=c++11 sort.cpp -pthread -o sort_gdb 
+profile:
+	g++ $(flags) -pg -std=c++11 sort.cpp -pthread -o sort_pg
