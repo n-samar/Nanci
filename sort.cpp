@@ -88,34 +88,25 @@ void S(int *a, size_t i, size_t j, size_t cycle) {
     a[i] = a[j];
     a[j] = temp;
     if (PRINT_S)
-        cout << "SWAP: " << i << ", " << j << endl;
+        cout << "  S: " << cycle << ", " << i << ", " << j << endl;
     if (RECORD) {
         inst_map[i].push_back((struct inst) {false, cycle, i, j});
-        inst_map[j].push_back((struct inst) {false, cycle, i, j});
-    }
-}
-
-void S(int *a, size_t i, size_t j, size_t cycle, bool is_CAS) {
-    if (PRINT_S)
-        cout << "CAS";
-    S(a, i, j, cycle);
-    if (RECORD) {
-        inst_map[i][inst_map[i].size()-1].is_CAS = is_CAS;
-        inst_map[j][inst_map[j].size()-1].is_CAS = is_CAS;
+        inst_map[j].push_back((struct inst) {false, cycle, j, i});
     }
 }
 
 void CAS(int *a, size_t i, size_t j, size_t cycle) {
     assert(i<=j);
-    if (a[i] > a[j])
-        S(a, i, j, cycle, true);
-    else {
-        if (PRINT_S)
-            cout << "CASSWAP: " << i << ", " << j << endl;
-        if (RECORD) {
-            inst_map[i].push_back((struct inst) {true, cycle, i, j});
-            inst_map[j].push_back((struct inst) {true, cycle, i, j});
-        }
+    if (a[i] > a[j]) {
+        int temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
+    }
+    if (PRINT_S)
+        cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
+    if (RECORD) {
+        inst_map[i].push_back((struct inst) {true, cycle, i, j});
+        inst_map[j].push_back((struct inst) {true, cycle, j, i});
     }
 }
 
@@ -133,11 +124,18 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     assert(M*i_j+i_k < M*N);
     assert(M*j_j+j_k < M*N);
 
-    if(a[M*i_j+i_k] > a[M*j_j+j_k])
-        S(a, M*i_j+i_k, M*j_j+j_k, cycle, true);
-    else if (RECORD) {
+    if(a[M*i_j+i_k] > a[M*j_j+j_k]) {
+        size_t x = M*i_j+i_k;
+        size_t y = M*j_j+j_k;
+        int temp = a[x];
+        a[x] = a[y];
+        a[y] = temp;
+    }
+    if (PRINT_S)
+        cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
+    if (RECORD) {
         inst_map[i].push_back((struct inst) {true, cycle, i, j});
-        inst_map[j].push_back((struct inst) {true, cycle, i, j});
+        inst_map[j].push_back((struct inst) {true, cycle, j, i});
     }
 }
 
@@ -161,7 +159,7 @@ size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle)
         return cycle;
     }
     if (n == 1 && width == 2) {
-        CAS(a, 0, 1, cycle);
+        CAS_snake(a, 1, 2, 0, 1, cycle);
         return cycle+1;
     }
 
@@ -190,10 +188,10 @@ size_t perfect_shuffle_reverse(int *a, size_t n, size_t cycle) {
 
 size_t compare_swap(int *a, size_t n, size_t cycle) {
     if (n == 2) {
-        CAS(a, 0, 1, cycle);
+        CAS_snake(a, 1, n, 0, 1, cycle);
     } else {
         for (size_t i = 1; i<n-1; i+=2)
-            CAS(a, i, i+1, cycle);
+            CAS_snake(a, 1, n, i, i+1, cycle);
     }
     cycle++;
     return cycle;
@@ -344,10 +342,11 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
     // M6 prime
     size_t N = j;
     size_t M = 2;
-    for (size_t ind = 1; ind < 2*s; ind+=1)
+    for (size_t ind = 1; ind < 2*s; ind+=1) {
         for (size_t i = ind%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
-    cycle+=(2*s-1);
+        cycle++;
+    }
 
     return cycle;
 }
@@ -378,10 +377,8 @@ size_t M_j_two(int *a, size_t j, size_t cycle) {
     }
 
     // J4
-    for (size_t i = 0; i < 2*j; i+=4) {
-        CAS(a, i+1, i+3, cycle);
-        if (i+4 < 2*j)
-            CAS(a, i+2, i+4, cycle);
+    for (size_t i = 1; i+1 < 2*j; i+=2) {
+        CAS_snake(a, j, 2, i, i+1, cycle);
     }
     cycle++;
     return cycle;
@@ -453,17 +450,17 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
         return cycle;
     } else if (M == 2 && N == s) {
         cycle = odd_even_transposition_sort(a, N, 2, cycle);
-
         assert_sorted_snake(a, N, M);
         return cycle;
     }
 
     // M1 prime
-    if (N > s)
+    if (N > s) {
         for (size_t j = 1; j < N; j+=2)
             for (size_t k = 0; k < M-1; k+=2)
                 S(a, j*M+k, j*M+k+1, cycle);
-    cycle++;
+        cycle++;
+    }
 
     // M2
     size_t temp;
@@ -497,10 +494,12 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     cycle++;
 
     // M6 prime
-    for (size_t j = 1; j < 2*s+2; j+=1)
+    for (size_t j = 1; j < 2*s; j+=1) {
         for (size_t i = j%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
-    cycle+=(2*s);
+        cycle++;
+    }
+    
     assert_sorted_snake(a, N, M);
     return cycle;
 }
@@ -574,10 +573,12 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     cycle++;
 
     // M6 prime prime
-    for (size_t j = 1; j < s*s+2; j+=1)
-        for (size_t i = j%2; i < N*M-1; i+=2)
+    for (size_t j = 1; j < s*s; j+=1) {
+        for (size_t i = j%2; i < N*M-1; i+=2) {
             CAS_snake(a, N, M, i, i+1, cycle);
-    cycle+=(s*s-1);
+        }
+        cycle++;
+    }
     
     assert_sorted_snake(a, N, M);
     return cycle;
@@ -674,7 +675,8 @@ int main() {
         cout << "sqrt(N) == " << N << "; cycles == " << cycle
              << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
         prev = clock();
-        print_all(cycle, z*z);
+        if (RECORD)
+            print_all(cycle, z*z);
     }
     return 0;
 }
