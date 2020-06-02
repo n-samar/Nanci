@@ -11,7 +11,7 @@
 using namespace std;
 
 static bool RECORD = true;
-static bool PRINT_S = false;
+static bool PRINT_S = true;
 struct inst {
     bool is_CAS;
     unsigned long cycle;
@@ -134,7 +134,11 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     assert(M*j_j+j_k < M*N);
 
     if(a[M*i_j+i_k] > a[M*j_j+j_k])
-        S(a, M*i_j+i_k, M*j_j+j_k, cycle);
+        S(a, M*i_j+i_k, M*j_j+j_k, cycle, true);
+    else if (RECORD) {
+        inst_map[i].push_back((struct inst) {true, cycle, i, j});
+        inst_map[j].push_back((struct inst) {true, cycle, i, j});
+    }
 }
 
 
@@ -270,12 +274,41 @@ void get_actions(size_t i) {
         print_inst(elem);
 }
 
-void print_insts() {
+void print_all(size_t cycles, size_t N_PE) {
     map<size_t, vector<struct inst> > chrono_insts;
-    for (size_t i = 0; i < inst_map.size(); ++i) {
-    for (auto & elem : inst_map[i]) {
-
+    for (size_t i = 0; i < N_PE; ++i) {
+        for (auto & elem : inst_map[i]) {
+            chrono_insts[elem.cycle].push_back(elem);
         }
+    }
+
+    cout << " c, ";
+    for (size_t i = 0; i < N_PE; ++i) {
+        cout << std::setfill(' ') << std::setw(2)  << i << " ";
+        if (i+1 < N_PE)
+            cout << ", ";
+    }
+
+    cout << endl;
+
+    for (size_t i = 0; i < cycles; ++i) {
+        sort(chrono_insts[i].begin(), chrono_insts[i].end(), [](struct inst a, struct inst b) { return a.src > b.src; });
+        cout << std::setfill(' ') << std::setw(2) << i << ", ";
+        for (size_t j = 0; j < N_PE; j++) {
+            if (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) {
+                cout << std::setfill(' ') << std::setw(2) << chrono_insts[i].back().dst;
+
+                if (chrono_insts[i].back().is_CAS)
+                    cout << "*";
+                else
+                    cout << " ";
+                while (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) chrono_insts[i].pop_back();
+            } else
+                cout << "   ";
+            if (j+1 < N_PE)
+                cout << ", ";
+        }
+        cout << "\n";
     }
 }
 
@@ -622,12 +655,12 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 int main() {
 
     clock_t prev = clock();
-    for (size_t z = 128; z < 256; z*=2) {
+    for (size_t z = 4; z < 8; z*=2) {
         size_t N = z;
         size_t M = z;
         int *a = new int[N*M];
         init_rand(a, N*M);
-        size_t cycle = sort_12n(a, N, M, 0);
+        size_t cycle = sort_6n(a, N, M, 0);
         int *b = new int[N*M];
         make_submatrix(a, b, 0, 0, N, M, N, M);
         assert_sorted_snake(a, N, M);
@@ -641,6 +674,7 @@ int main() {
         cout << "sqrt(N) == " << N << "; cycles == " << cycle
              << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
         prev = clock();
+        print_all(cycle, z*z);
     }
     return 0;
 }
