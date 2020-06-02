@@ -10,7 +10,7 @@
 
 using namespace std;
 
-static bool RECORD = false;
+static bool RECORD = true;
 static bool PRINT_S = false;
 struct inst {
     bool is_CAS;
@@ -20,6 +20,18 @@ struct inst {
 };
 
 map<size_t, vector<struct inst> > inst_map;
+
+
+void print_matrix(int *a, size_t N, size_t M) {
+    for (size_t i = 0; i < N; i++) {
+        for (size_t j = 0; j < M; j++) {
+            if (j!=0)
+                cout << ", ";
+            cout << setw(2) << setfill('0') << a[i*M+j];
+        }
+        cout << endl;
+    }
+}
 
 size_t snake_to_index(size_t i, size_t N, size_t M) {
     size_t i_j = i/M;
@@ -117,6 +129,9 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     size_t j_k = j%M;
     if (j_j % 2 == 1)
         j_k = M-1-j_k;
+    
+    assert(M*i_j+i_k < M*N);
+    assert(M*j_j+j_k < M*N);
 
     if(a[M*i_j+i_k] > a[M*j_j+j_k])
         S(a, M*i_j+i_k, M*j_j+j_k, cycle);
@@ -134,17 +149,6 @@ size_t perfect_shuffle(int *a, size_t n, size_t cycle) {
         cycle++;
     }
     return cycle;
-}
-
-void print_matrix(int *a, size_t N, size_t M) {
-    for (size_t i = 0; i < N; i++) {
-        for (size_t j = 0; j < M; j++) {
-            if (j!=0)
-                cout << ", ";
-            cout << setw(2) << setfill('0') << a[i*M+j];
-        }
-        cout << endl;
-    }
 }
 
 
@@ -266,6 +270,14 @@ void get_actions(size_t i) {
         print_inst(elem);
 }
 
+void print_insts() {
+    map<size_t, vector<struct inst> > chrono_insts;
+    for (size_t i = 0; i < inst_map.size(); ++i) {
+    for (auto & elem : inst_map[i]) {
+
+        }
+    }
+}
 
 // j == N specifies row
 // k == M specifies column
@@ -279,10 +291,17 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
 
 
     // J2
-    odd_even_transposition_sort(a, j, 2, cycle);
-    cycle = odd_even_transposition_sort(a+1, j, 2, cycle);
+    int *b = new int[j];
+    make_submatrix(a, b, 0, 0, j, 2, j, 1);
+    odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 0, j, 2, j, 1);
 
-
+    make_submatrix(a, b, 0, 1, j, 2, j, 1);
+    cycle = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 1, j, 2, j, 1);
+    
+    delete[] b;
+    
     // J3
     for (size_t i = 2; i < 2*j; i+=4) {
         S(a, i, i+1, cycle);
@@ -309,8 +328,16 @@ size_t M_j_two(int *a, size_t j, size_t cycle) {
     cycle+=2;
 
     // J2
-    odd_even_transposition_sort(a, j, 2, cycle);
-    cycle = odd_even_transposition_sort(a+1, j, 2, cycle);
+    int *b = new int[j];
+    make_submatrix(a, b, 0, 0, j, 2, j, 1);
+    odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 0, j, 2, j, 1);
+
+    make_submatrix(a, b, 0, 1, j, 2, j, 1);
+    cycle = odd_even_transposition_sort(b, j, 1, cycle);
+    copy_back_matrix(a, b, 0, 1, j, 2, j, 1);
+    
+    delete[] b;
 
     // J3
     for (size_t i = 2; i < 2*j; i+=4) {
@@ -393,6 +420,7 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
         return cycle;
     } else if (M == 2 && N == s) {
         cycle = odd_even_transposition_sort(a, N, 2, cycle);
+
         assert_sorted_snake(a, N, M);
         return cycle;
     }
@@ -594,7 +622,7 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 int main() {
 
     clock_t prev = clock();
-    for (size_t z = 256; z < 512; z*=2) {
+    for (size_t z = 128; z < 256; z*=2) {
         size_t N = z;
         size_t M = z;
         int *a = new int[N*M];
