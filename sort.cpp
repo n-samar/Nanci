@@ -316,7 +316,7 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
     // J1
     for (size_t i = 0; i < 2*j; i+=4) {
         S(a, i+1, i+3, cycle);
-        S(a, i+2, i+3, cycle);
+        S(a, i+2, i+3, cycle+1);
     }
     cycle+=2;
 
@@ -355,7 +355,7 @@ size_t M_j_two(int *a, size_t j, size_t cycle) {
     // J1
     for (size_t i = 0; i < 2*j; i+=4) {
         S(a, i+1, i+3, cycle);
-        S(a, i+2, i+3, cycle);
+        S(a, i+2, i+3, cycle+1);
     }
     cycle+=2;
 
