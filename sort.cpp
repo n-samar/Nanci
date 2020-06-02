@@ -1,9 +1,11 @@
+  
 #include <iomanip>
 #include <math.h>
 #include <iostream>
 #include <assert.h>
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <unistd.h>
 
 using namespace std;
@@ -156,7 +158,7 @@ size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle)
     }
 
     for (size_t count = 0; count < n*width; count++) {
-        for(int i = (count+1)%2; i < n*width-1; i+=2) {
+        for(size_t i = (count+1)%2; i < n*width-1; i+=2) {
             CAS_snake(a, n, width, i, i+1, cycle);
         }
         cycle++;
@@ -237,14 +239,14 @@ void init_rand(int *a, size_t n) {
 }
 
 void init_rand_sorted(int *a, size_t n) {
-    srand(time(NULL)*((size_t)a));
+    srand(time(NULL)*((long int)a));
     a[0] = 0;
     for (size_t i = 1; i < n; i++)
         a[i] = a[i-1] + (rand() % 100);
 }
 
 void init_rand_sorted_step(int *a, size_t n, size_t step) {
-    srand(time(NULL)*((size_t)a));
+    srand(time(NULL)*((long int)a));
     a[0] = 0;
     for (size_t i = step; i/step < n; i+= step)
         a[i] = a[i-step] + (rand() % 100);
@@ -290,8 +292,8 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
     // M6 prime
     size_t N = j;
     size_t M = 2;
-    for (int j = 1; j < 2*s; j+=1)
-        for (int i = j%2; i < N*M-1; i+=2)
+    for (size_t ind = 1; ind < 2*s; ind+=1)
+        for (size_t i = ind%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
     cycle+=(2*s-1);
 
@@ -334,8 +336,8 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
         return cycle;
     }
 
-    for (int j = 1; j < N; j+=2) {
-        for (int k = 0; k < M-1; k+=2) {
+    for (size_t j = 1; j < N; j+=2) {
+        for (size_t k = 0; k < M-1; k+=2) {
             S(a, j*M+k, j*M+k+1, cycle);
         }
     }
@@ -344,7 +346,7 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 
     // M2
     size_t temp;
-    for (int j = 0; j < N; j++) 
+    for (size_t j = 0; j < N; j++) 
         temp = perfect_shuffle_reverse(a+j*M, M, cycle);
     cycle = temp;
     
@@ -363,18 +365,18 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
     delete[] b;
 
     // M4
-    for (int j = 0; j < N; j++)
+    for (size_t j = 0; j < N; j++)
             temp = perfect_shuffle(a+j*M, M, cycle);
     cycle = temp;
 
     // M5
-    for (int j = 1; j < N; j+=2)
-        for (int k = 0; k < M-1; k+=2)
+    for (size_t j = 1; j < N; j+=2)
+        for (size_t k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
     cycle++;
 
     // M6
-    for (int i = 1; i < N*M-1; i+=2)
+    for (size_t i = 1; i < N*M-1; i+=2)
         CAS_snake(a, N, M, i, i+1, cycle);
     cycle++;
 
@@ -397,14 +399,14 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 
     // M1 prime
     if (N > s)
-        for (int j = 1; j < N; j+=2)
-            for (int k = 0; k < M-1; k+=2)
+        for (size_t j = 1; j < N; j+=2)
+            for (size_t k = 0; k < M-1; k+=2)
                 S(a, j*M+k, j*M+k+1, cycle);
     cycle++;
 
     // M2
     size_t temp;
-    for (int j = 0; j < N; j++)
+    for (size_t j = 0; j < N; j++)
         temp = perfect_shuffle_reverse(a+j*M, M, cycle);
     cycle = temp;
 
@@ -423,19 +425,19 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     delete[] b;
 
     // M4
-    for (int j = 0; j < N; j++)
+    for (size_t j = 0; j < N; j++)
         temp = perfect_shuffle(a+j*M, M, cycle);
     cycle = temp;
         
     // M5
-    for (int j = 1; j < N; j+=2)
-        for (int k = 0; k < M-1; k+=2)
+    for (size_t j = 1; j < N; j+=2)
+        for (size_t k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
     cycle++;
 
     // M6 prime
-    for (int j = 1; j < 2*s+2; j+=1)
-        for (int i = j%2; i < N*M-1; i+=2)
+    for (size_t j = 1; j < 2*s+2; j+=1)
+        for (size_t i = j%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
     cycle+=(2*s);
     assert_sorted_snake(a, N, M);
@@ -475,14 +477,14 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     }
 
     // M1 prime prime
-    for (int j = 1; j < N; j+=2)
-        for (int k = 0; k < M-1; k+=2)
+    for (size_t j = 1; j < N; j+=2)
+        for (size_t k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
     cycle++;
 
     // M2
     size_t temp;
-    for (int j = 0; j < N; j++)
+    for (size_t j = 0; j < N; j++)
             temp = perfect_shuffle_reverse(a+j*M, M, cycle);
     cycle = temp;
 
@@ -500,19 +502,19 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     delete[] b;
 
     // M4
-    for (int j = 0; j < N; j++)
+    for (size_t j = 0; j < N; j++)
         temp = perfect_shuffle(a+j*M, M, cycle);
     cycle = temp;
     
     // M5
-    for (int j = 1; j < N; j+=2)
-        for (int k = 0; k < M-1; k+=2)
+    for (size_t j = 1; j < N; j+=2)
+        for (size_t k = 0; k < M-1; k+=2)
             S(a, j*M+k, j*M+k+1, cycle);
     cycle++;
 
     // M6 prime prime
-    for (int j = 1; j < s*s+2; j+=1)
-        for (int i = j%2; i < N*M-1; i+=2)
+    for (size_t j = 1; j < s*s+2; j+=1)
+        for (size_t i = j%2; i < N*M-1; i+=2)
             CAS_snake(a, N, M, i, i+1, cycle);
     cycle+=(s*s-1);
     
@@ -523,7 +525,7 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 
 void init_rand_sorted_snake(int *a, size_t N, size_t M) {
     a[snake_to_index(0, N, M)] = 0;
-    for (int i = 1; i < N*M; i++)
+    for (size_t i = 1; i < N*M; i++)
         a[snake_to_index(i, N, M)] = a[snake_to_index(i-1, N, M)] + rand()%100;
 }
 
