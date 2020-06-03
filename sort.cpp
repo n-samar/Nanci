@@ -1,16 +1,20 @@
 #include <iomanip>
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 #include <iostream>
 #include <assert.h>
 #include <map>
 #include <vector>
+#include <iterator>
 #include <algorithm>
 #include <unistd.h>
+#include<stack>
 
 using namespace std;
 
-static bool RECORD = true;
-static bool PRINT_S = true;
+static bool RECORD = false;
+static bool PRINT_S = false;
 struct inst {
     bool is_CAS;
     unsigned long cycle;
@@ -18,8 +22,7 @@ struct inst {
     size_t dst;
 };
 
-map<size_t, vector<struct inst> > inst_map;
-
+std::vector<std::map<size_t, vector<struct inst> > *> inst_map_stack;
 
 void print_matrix(int *a, size_t N, size_t M) {
     for (size_t i = 0; i < N; i++) {
@@ -42,15 +45,21 @@ size_t snake_to_index(size_t i, size_t N, size_t M) {
 
 // j == N specifies row
 // k == M specifies column
-void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, size_t a_width, size_t height, size_t width) {
+void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, 
+                    size_t a_width, size_t height, size_t width) {
     assert(a_j+height <= a_height);
     assert(a_k+width <= a_width);
-    for (size_t j = a_j; j < a_j+height; j++)
+    for (size_t j = a_j; j < a_j+height; j++) {
         for (size_t k = a_k; k < a_k+width; k++) {
             b[(j-a_j)*width + (k-a_k)] = a[j*a_width + k];
             assert((j-a_j)*width+(k-a_k) < height*width);
             assert((j*a_width) + k < a_height*a_width);
         }
+    }
+
+    if (RECORD) {
+        inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
+    }
 }
 
 // j == N specifies row
@@ -66,23 +75,22 @@ void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, s
         }
     }
 
-    /*
-    if (RECORD && (a_j != 0 || a_k != 0)) {
+    if (RECORD) {
+        std::map<size_t, vector<struct inst> > *top = inst_map_stack.back();
+
         for (size_t cyc = cycle_low; cyc < cycle_high; cyc++) {
-            for (auto & elem : inst_map[cyc]) {
-                size_t src_j = elem.src/a_width;
-                size_t src_k = elem.src%a_width;
-                if (src_j < height && src_k < width) {
-                    size_t dst_j = elem.dst/a_width;
-                    size_t dst_k = elem.dst%a_width;
-                    inst_map[cyc].push_back((struct inst) {elem.is_CAS, elem.cycle, 
-                                            (a_j+src_j)*a_width+src_k+a_k, 
-                                            (a_j+dst_j)*a_width+dst_k+a_k});
-                }
+            for (auto & elem : (*top)[cyc]) {
+                size_t src_j = elem.src/width;
+                size_t src_k = elem.src%width;
+                size_t dst_j = elem.dst/width;
+                size_t dst_k = elem.dst%width;
+                (*(inst_map_stack.end()[-2]))[cyc].push_back((struct inst) {elem.is_CAS, elem.cycle, 
+                                                                            (a_j+src_j)*a_width+src_k+a_k, 
+                                                                            (a_j+dst_j)*a_width+dst_k+a_k});
             }
         }
+        inst_map_stack.pop_back();
     }
-    */
 }
 
 void assert_sorted_snake(int *a, size_t N, size_t M) {
@@ -108,8 +116,8 @@ void S(int *a, size_t i, size_t j, size_t cycle) {
     if (PRINT_S)
         cout << "  S: " << cycle << ", " << i << ", " << j << endl;
     if (RECORD) {
-        inst_map[i].push_back((struct inst) {false, cycle, i, j});
-        inst_map[j].push_back((struct inst) {false, cycle, j, i});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {false, cycle, i, j});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {false, cycle, j, i});
     }
 }
 
@@ -123,8 +131,8 @@ void CAS(int *a, size_t i, size_t j, size_t cycle) {
     if (PRINT_S)
         cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
     if (RECORD) {
-        inst_map[i].push_back((struct inst) {true, cycle, i, j});
-        inst_map[j].push_back((struct inst) {true, cycle, j, i});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, i, j});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, j, i});
     }
 }
 
@@ -141,24 +149,25 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     
     assert(M*i_j+i_k < M*N);
     assert(M*j_j+j_k < M*N);
-
+    size_t x = M*i_j+i_k;
+    size_t y = M*j_j+j_k;
     if(a[M*i_j+i_k] > a[M*j_j+j_k]) {
-        size_t x = M*i_j+i_k;
-        size_t y = M*j_j+j_k;
         int temp = a[x];
         a[x] = a[y];
         a[y] = temp;
     }
     if (PRINT_S)
-        cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
+        cout << "CAS: " << cycle << ", " << x << ", " << y << endl;
     if (RECORD) {
-        inst_map[i].push_back((struct inst) {true, cycle, i, j});
-        inst_map[j].push_back((struct inst) {true, cycle, j, i});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, x, y});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, y, x});
     }
 }
 
 
 size_t perfect_shuffle(int *a, size_t n, size_t cycle) {
+    if (PRINT_S)
+        cout << "perfect_shuffle: " << cycle << endl;
     if (n == 1)
         return cycle;
     assert(n%2 == 0);
@@ -173,6 +182,8 @@ size_t perfect_shuffle(int *a, size_t n, size_t cycle) {
 
 
 size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle) {
+    if (PRINT_S)
+        cout << "odd_even_transposition_sort: " << cycle << endl;
     if (n*width == 1) {
         return cycle;
     }
@@ -192,6 +203,8 @@ size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle)
 
 
 size_t perfect_shuffle_reverse(int *a, size_t n, size_t cycle) {
+    if (PRINT_S)
+        cout << "perfect_shuffle_reverse: " << cycle << ", " << n << endl;
     if (n == 1)
         return cycle;
     assert(n%2 == 0);
@@ -205,6 +218,8 @@ size_t perfect_shuffle_reverse(int *a, size_t n, size_t cycle) {
 }
 
 size_t compare_swap(int *a, size_t n, size_t cycle) {
+    if (PRINT_S)
+        cout << "compare_swap: " << cycle << endl;
     if (n == 2) {
         CAS_snake(a, 1, n, 0, 1, cycle);
     } else {
@@ -216,11 +231,18 @@ size_t compare_swap(int *a, size_t n, size_t cycle) {
 }
 
 size_t two_way_odd_even_merge(int *a, size_t n, size_t cycle) {
+    if (PRINT_S)
+        cout << "two_way_odd_even_merge: " << cycle << endl;
     if (n == 1)
         return cycle;
     cycle = perfect_shuffle_reverse(a, n, cycle);
     two_way_odd_even_merge(a, n/2, cycle);
-    cycle = two_way_odd_even_merge(a+n/2, n/2, cycle);
+    size_t temp;
+    int *b = new int[n/2];
+    make_submatrix(a, b, 0, n/2, 1, n, 1, n/2);
+    temp = two_way_odd_even_merge(b, n/2, cycle);
+    copy_back_matrix(a, b, 0, n/2, 1, n, 1, n/2, cycle, temp);
+    delete[] b;
     cycle = perfect_shuffle(a, n, cycle);
     cycle = compare_swap(a, n, cycle);
     return cycle;
@@ -286,17 +308,12 @@ void print_inst(struct inst elem) {
 
 void get_actions(size_t i) {
     cout << "is_CAS, cycle, src, dst" << endl;
-    for (auto & elem : inst_map[i])
+    for (auto & elem : (*(inst_map_stack.back()))[i])
         print_inst(elem);
 }
 
 void print_all(size_t cycles, size_t N_PE) {
-    map<size_t, vector<struct inst> > chrono_insts;
-    for (size_t i = 0; i < N_PE; ++i) {
-        for (auto & elem : inst_map[i]) {
-            chrono_insts[elem.cycle].push_back(elem);
-        }
-    }
+    map<size_t, vector<struct inst> > chrono_insts = *(inst_map_stack.back());
 
     cout << " c, ";
     for (size_t i = 0; i < N_PE; ++i) {
@@ -331,6 +348,9 @@ void print_all(size_t cycles, size_t N_PE) {
 // j == N specifies row
 // k == M specifies column
 size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
+    if (PRINT_S)
+        cout << "M_j_two_s: " << cycle << endl;
+
     // J1
     for (size_t i = 0; i < 2*j; i+=4) {
         S(a, i+1, i+3, cycle);
@@ -363,8 +383,9 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
     size_t N = j;
     size_t M = 2;
     for (size_t ind = 1; ind < 2*s; ind+=1) {
-        for (size_t i = ind%2; i < N*M-1; i+=2)
+        for (size_t i = ind%2; i < N*M-1; i+=2) {
             CAS_snake(a, N, M, i, i+1, cycle);
+        }
         cycle++;
     }
 
@@ -372,6 +393,9 @@ size_t M_j_two_s(int *a, size_t j, size_t s, size_t cycle) {
 }
 
 size_t M_j_two(int *a, size_t j, size_t cycle) {
+    if (PRINT_S)
+        cout << "M_j_two: " << cycle << endl;
+
     // J1
     for (size_t i = 0; i < 2*j; i+=4) {
         S(a, i+1, i+3, cycle);
@@ -408,6 +432,8 @@ size_t M_j_two(int *a, size_t j, size_t cycle) {
 // j == N specifies row
 // k == M specifies column
 size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
+    if (PRINT_S)
+        cout << "Mf: " << cycle << endl;
     // M1
     if (M == 2) {
         cycle = M_j_two(a, N, cycle);
@@ -424,13 +450,18 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 
     // M2
     size_t temp;
-    for (size_t j = 0; j < N; j++) 
-        temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    int *b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle_reverse(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
-    
+    delete[] b;
+
     // M3
 
-    int *b = new int[N*M/2];
+    b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
     temp = Mf(b, N, M/2, cycle);
@@ -444,9 +475,14 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
     delete[] b;
 
     // M4
-    for (size_t j = 0; j < N; j++)
-        temp = perfect_shuffle(a+j*M, M, cycle);
+    b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
+    delete[] b;
 
     // M5
     for (size_t j = 1; j < N; j+=2)
@@ -466,6 +502,8 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 // j == N specifies row
 // k == M specifies column
 size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
+    if (PRINT_S)
+        cout << "two_s_way_M: " << cycle << endl;
     if (M == 2 && N > s) {
         cycle = M_j_two_s(a, N, s, cycle);
         assert_sorted_snake(a, N, M);
@@ -486,12 +524,17 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 
     // M2
     size_t temp;
-    for (size_t j = 0; j < N; j++)
-        temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    int *b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle_reverse(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
+    delete[] b;
 
     // M3
-    int *b = new int[N*M/2];
+    b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
     temp = two_s_way_M(b, N, M/2, s, cycle);
@@ -505,9 +548,14 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     delete[] b;
 
     // M4
-    for (size_t j = 0; j < N; j++)
-        temp = perfect_shuffle(a+j*M, M, cycle);
+    b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
+    delete[] b;
         
     // M5
     for (size_t j = 1; j < N; j+=2)
@@ -530,6 +578,8 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 // j == N specifies row
 // k == M specifies column
 size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
+    if (PRINT_S)
+        cout << "M_prime_prime: " << cycle << endl;
     if (s == 1)
         return cycle;
     if (s == 2) {
@@ -566,12 +616,17 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
 
     // M2
     size_t temp;
-    for (size_t j = 0; j < N; j++)
-            temp = perfect_shuffle_reverse(a+j*M, M, cycle);
+    int *b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle_reverse(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
+    delete[] b;
 
     // M3
-    int *b = new int[N*M/2];
+    b = new int[N*M/2];
 
     make_submatrix(a, b, 0, 0, N, M, N, M/2);
     temp = M_prime_prime(b, N, M/2, s, cycle);
@@ -585,9 +640,14 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     delete[] b;
 
     // M4
-    for (size_t j = 0; j < N; j++)
-        temp = perfect_shuffle(a+j*M, M, cycle);
+    b = new int[M];
+    for (size_t j = 0; j < N; j++) {
+        make_submatrix(a, b, j, 0, N, M, 1, M);
+        temp = perfect_shuffle(b, M, cycle);
+        copy_back_matrix(a, b, j, 0, N, M, 1, M, cycle, temp);
+    }
     cycle = temp;
+    delete[] b;
     
     // M5
     for (size_t j = 1; j < N; j+=2)
@@ -627,6 +687,8 @@ size_t find_nearest_pow_2(double cbrt) {
 // j == N specifies row
 // k == M specifies column
 size_t sort_6n(int *a, size_t N, size_t M, size_t cycle) {
+    if (PRINT_S)
+        cout << "sort_6n: " << cycle << endl;
     if (N == 1 && M == 1)
         return cycle;
 
@@ -650,6 +712,8 @@ size_t sort_6n(int *a, size_t N, size_t M, size_t cycle) {
 }
 
 size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
+    if (PRINT_S)
+        cout << "sort_12n: " << cycle << endl;
     if (N == 1 && M == 1)
         return cycle;
     int *b = new int[N/2*M/2];
@@ -682,14 +746,17 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 int main() {
 
     clock_t prev = clock();
-    for (size_t z = 4; z < 8; z*=2) {
+    for (size_t z = 4; z < 1024; z*=2) {
+        if (RECORD) {
+            inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
+        }
         size_t N = z;
         size_t M = z;
         int *a = new int[N*M];
         init_rand(a, N*M);
         size_t cycle = sort_6n(a, N, M, 0);
         int *b = new int[N*M];
-        make_submatrix(a, b, 0, 0, N, M, N, M);
+        memcpy(b, a, N*M*sizeof(int));
         assert_sorted_snake(a, N, M);
         sort(a, a+N*M);
         sort(b, b+N*M);
@@ -701,8 +768,12 @@ int main() {
         cout << "sqrt(N) == " << N << "; cycles == " << cycle
              << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
         prev = clock();
-        if (RECORD)
+        if (RECORD) {
             print_all(cycle, z*z);
+            cout << "* -- indicates snake row-major order compare-and-swap." << endl;
+            inst_map_stack.pop_back();
+            assert(inst_map_stack.empty());
+        }
     }
     return 0;
 }
