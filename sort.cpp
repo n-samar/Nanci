@@ -202,7 +202,6 @@ size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle)
     return cycle;
 }
 
-
 size_t perfect_shuffle_reverse(int *a, size_t n, size_t cycle) {
     if (PRINT_S)
         cout << "perfect_shuffle_reverse: " << cycle << ", " << n << endl;
