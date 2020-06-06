@@ -15,6 +15,7 @@ using namespace std;
 
 static bool RECORD = false;
 static bool PRINT_S = false;
+
 struct inst {
     bool is_CAS;
     unsigned long cycle;
