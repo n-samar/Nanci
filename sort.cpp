@@ -12,7 +12,6 @@
 #include<stack>
 
 using namespace std;
-
 static bool RECORD = false;
 static bool PRINT_S = false;
 
