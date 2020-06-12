@@ -838,7 +838,7 @@ int main(int argc, char *argv[]) {
     cout << "sqrt(N) == " << N << "; cycles == " << cycle << endl;
     if (RECORD) {
         print_all(cycle, z*z);
-        cout << "* -- indicates snake row-major order compare-and-swap." << endl;
+        cout << "slt down -- swap less than, i.e. swap only if my value is smaller than that of down." << endl;
         inst_map_stack.pop_back();
         assert(inst_map_stack.empty());
     }
