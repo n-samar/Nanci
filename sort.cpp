@@ -13,7 +13,7 @@
 
 using namespace std;
 
-static bool RECORD = false;
+static bool RECORD = true;
 static bool PRINT_S = false;
 
 struct inst {
@@ -449,7 +449,7 @@ size_t Mf(int *a, size_t N, size_t M, size_t cycle) {
 
 
     // M2
-    size_t temp;
+    size_t temp = cycle;
     int *b = new int[M];
     for (size_t j = 0; j < N; j++) {
         make_submatrix(a, b, j, 0, N, M, 1, M);
@@ -523,7 +523,7 @@ size_t two_s_way_M(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     }
 
     // M2
-    size_t temp;
+    size_t temp = cycle;
     int *b = new int[M];
     for (size_t j = 0; j < N; j++) {
         make_submatrix(a, b, j, 0, N, M, 1, M);
@@ -588,7 +588,7 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     }
     if (M == s) {
         // N1
-        size_t temp;
+        size_t temp = cycle;
         for (size_t count = 2; count < s; count*=2) {
             int *b = new int[count*N/s];
             for (size_t j_sub = 0; j_sub < N; j_sub+=N/s) {
@@ -615,7 +615,7 @@ size_t M_prime_prime(int *a, size_t N, size_t M, size_t s, size_t cycle) {
     cycle++;
 
     // M2
-    size_t temp;
+    size_t temp = cycle;
     int *b = new int[M];
     for (size_t j = 0; j < N; j++) {
         make_submatrix(a, b, j, 0, N, M, 1, M);
@@ -694,7 +694,7 @@ size_t sort_6n(int *a, size_t N, size_t M, size_t cycle) {
 
     size_t s = find_nearest_pow_2(cbrt(N));
 
-    size_t temp;
+    size_t temp = cycle;
     for (size_t j = 0; j < N; j+=(N/s)) {
         for (size_t k = 0; k < M; k+=(M/s)) {
             int *b = new int[N/s*M/s];        
@@ -746,7 +746,7 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 int main() {
 
     clock_t prev = clock();
-    for (size_t z = 4; z < 1024; z*=2) {
+    for (size_t z = 8; z < 16; z*=2) {
         if (RECORD) {
             inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
         }
