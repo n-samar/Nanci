@@ -13,7 +13,7 @@
 
 using namespace std;
 
-static bool RECORD = true;
+static bool RECORD = false;
 static bool PRINT_S = false;
 
 struct inst {
