@@ -46,6 +46,11 @@ size_t snake_to_index(size_t i, size_t N, size_t M) {
     return M*i_j+i_k;
 }
 
+size_t index_to_snake(size_t i, size_t N, size_t M) {
+    size_t snake = i/M + ((i/M)%2)?(M-1-(i%M)):(i%M);
+    return snake;
+}
+
 // j == N specifies row
 // k == M specifies column
 void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, 
@@ -317,29 +322,57 @@ void get_actions(size_t i) {
 void print_all(size_t cycles, size_t N_PE) {
     map<size_t, vector<struct inst> > chrono_insts = *(inst_map_stack.back());
 
-    cout << " c, ";
+    cout << "cycle num, ";
     for (size_t i = 0; i < N_PE; ++i) {
-        cout << std::setfill(' ') << std::setw(2)  << i << " ";
+        cout << std::setfill(' ') << std::setw(HUMAN?9:5)  << i;
         if (i+1 < N_PE)
             cout << ", ";
     }
 
     cout << endl;
-
+    size_t N = size_t(sqrt(N_PE));
     for (size_t i = 0; i < cycles; ++i) {
         sort(chrono_insts[i].begin(), chrono_insts[i].end(), [](struct inst a, struct inst b) { return a.src > b.src; });
-        cout << std::setfill(' ') << std::setw(2) << i << ", ";
+        cout << std::setfill(' ') << std::setw(9) << i << ", ";
         for (size_t j = 0; j < N_PE; j++) {
             if (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) {
-                cout << std::setfill(' ') << std::setw(2) << chrono_insts[i].back().dst;
-
-                if (chrono_insts[i].back().is_CAS)
-                    cout << "*";
-                else
-                    cout << " ";
+                size_t dst = chrono_insts[i].back().dst;
+                string inst;
+                if (HUMAN) inst = "s  ";
+                else inst = "11_";
+                if (chrono_insts[i].back().is_CAS) {
+                    size_t snake_dst = index_to_snake(dst, N, N);
+                    size_t snake_src = index_to_snake(j, N, N);
+                    if (snake_src > snake_dst) {
+                        if (HUMAN) inst = "slt";
+                        else inst = "01_";
+                    } else { 
+                        if (HUMAN) inst = "sgt";
+                        else inst = "10_";
+                    }
+                }
+                string dir;
+                if (HUMAN) dir = "_____";
+                else dir = "00";
+                if (dst+1 == j) {
+                    if (HUMAN) dir = "  left";
+                    else dir = "00";
+                } else if (dst-1 == j) {
+                    if (HUMAN) dir = " right";
+                    else dir = "01";
+                } else if (dst+N == j) {
+                    if (HUMAN) dir = "    up";
+                    else dir = "10";
+                } else if (dst-N == j) {
+                    if (HUMAN) dir = "  down";
+                    else dir = "11";
+                }
+                cout << inst << dir;
                 while (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) chrono_insts[i].pop_back();
-            } else
-                cout << "   ";
+            } else {
+                if (HUMAN) cout << "      nop";
+                else cout << "00_00";
+            }
             if (j+1 < N_PE)
                 cout << ", ";
         }
