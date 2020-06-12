@@ -13,7 +13,9 @@
 
 using namespace std;
 
-static bool RECORD = false;
+static bool RECORD = false;     // output execution diagram for each process (use `-r')
+static bool N_DEBUG = false;    // No asserts run when true (use `-a' or `--assert')
+static bool HUMAN = false;      // Generate human-readable output (use `-h')
 static bool PRINT_S = false;
 
 struct inst {
@@ -743,37 +745,69 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
     return cycle;
 }
 
-int main() {
+void print_usage() {
+    fprintf(stderr, "Usage: sort -N=power_of_two -[a|r|h|]\n");
+}
 
-    clock_t prev = clock();
-    for (size_t z = 8; z < 16; z*=2) {
-        if (RECORD) {
-            inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
+bool pow_of_2(size_t N) {
+    return (!(N & (N-1)) && N > 0);
+}
+
+int main(int argc, char *argv[]) {
+    int opt;
+    size_t z = 3;
+    if (argc == 1) {
+        print_usage();
+        return -1;
+    }
+
+    while((opt = getopt(argc, argv, "N:ahr")) != -1) {
+        switch (opt) {
+            case 'N':
+                z = stoul(optarg);
+                break;
+            case 'a':
+                N_DEBUG = true;
+                break;
+            case 'h':
+                HUMAN = true;
+                break;
+            case 'r':
+                RECORD = true;
+                break;
+            default:
+                print_usage();
+                return -1;
         }
-        size_t N = z;
-        size_t M = z;
-        int *a = new int[N*M];
-        init_rand(a, N*M);
-        size_t cycle = sort_6n(a, N, M, 0);
-        int *b = new int[N*M];
-        memcpy(b, a, N*M*sizeof(int));
-        assert_sorted_snake(a, N, M);
-        sort(a, a+N*M);
-        sort(b, b+N*M);
-        for (size_t i = 0; i < N*M; i++)
-            assert(a[i] == b[i]);
-        delete[] a;
-        delete[] b;
-        time_t elapsed_time = clock()-prev;
-        cout << "sqrt(N) == " << N << "; cycles == " << cycle
-             << "; elapsed time == " << (double) elapsed_time/CLOCKS_PER_SEC << "s" << endl;
-        prev = clock();
-        if (RECORD) {
-            print_all(cycle, z*z);
-            cout << "* -- indicates snake row-major order compare-and-swap." << endl;
-            inst_map_stack.pop_back();
-            assert(inst_map_stack.empty());
-        }
+    }
+
+    if (!pow_of_2(z)) {
+        print_usage();
+        return -1;
+    }
+    if (RECORD)
+        inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
+    size_t N = z;
+    size_t M = z;
+    int *a = new int[N*M];
+    init_rand(a, N*M);
+    size_t cycle = sort_6n(a, N, M, 0);
+    int *b = new int[N*M];
+    memcpy(b, a, N*M*sizeof(int));
+    assert_sorted_snake(a, N, M);
+    sort(a, a+N*M);
+    sort(b, b+N*M);
+    for (size_t i = 0; i < N*M; i++)
+        assert(a[i] == b[i]);
+    delete[] a;
+    delete[] b;
+    
+    cout << "sqrt(N) == " << N << "; cycles == " << cycle << endl;
+    if (RECORD) {
+        print_all(cycle, z*z);
+        cout << "* -- indicates snake row-major order compare-and-swap." << endl;
+        inst_map_stack.pop_back();
+        assert(inst_map_stack.empty());
     }
     return 0;
 }
