@@ -10,6 +10,7 @@ module nanci_tb ();
          .FILENAME("../data/0004/0000.data"),
          .ADDR_WIDTH(3),
          .SORT_CYCLES(4),
+         .FIRST_IN_ROW(0),
          .COMPUTE_CYCLES(7))
          PE_tb (.clk(clk),
           .rst(rst),

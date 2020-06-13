@@ -1,3 +1,4 @@
+
 module counter #(parameter ADDR_WIDTH = 16)
                 (input                       clk,
                  input                       rst,
@@ -17,6 +18,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             parameter FILENAME = "../data/0004/0000.data", // Filename for instructions
             parameter ADDR_WIDTH = 10,                     // Width required to store index into PEs
             parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
+            parameter FIRST_IN_ROW = 0,                    // Index of first PE in this PE's row
             parameter COMPUTE_CYCLES = 3)                  // Specifies number of compute cycles        
            (input                   clk,
             input                   rst,
@@ -26,6 +28,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             input [2*ADDR_WIDTH-1:0]  i_PE_d,
             output [2*ADDR_WIDTH-1:0] o_PE);
 
+    parameter MAX_INT          = N;     // Reserved for NOP keys
     parameter STATE_TOP_END    = 4;
     parameter STATE_TOP_START  = 3;
     parameter STATE_BOTTOM_END = 2;
@@ -73,7 +76,8 @@ module PE #(parameter N = 1024,                            // Total number of PE
                                         .counter(clk_counter));
 
     reg [2*ADDR_WIDTH-1:0] comm_reg;
-    assign o_PE = comm_reg;
+    reg [2*ADDR_WIDTH-1:0] addr_reg;    // Extra register needed for COL_ALIGN
+    assign o_PE = addr_reg;
     
     // Initialize instruction ROM
     initial begin
@@ -158,57 +162,110 @@ module PE #(parameter N = 1024,                            // Total number of PE
         if (state[STATE_BOTTOM_END:0] == SORT) begin
             case(inst_ROM[clk_counter]) 
             s_l: begin
-                comm_reg <= i_PE_l;
+                addr_reg <= i_PE_l;
             end
             s_r: begin
-                comm_reg <= i_PE_r;
+                addr_reg <= i_PE_r;
             end
             s_u: begin
-                comm_reg <= i_PE_u;
+                addr_reg <= i_PE_u;
             end
             s_d: begin
-                comm_reg <= i_PE_d;
+                addr_reg <= i_PE_d;
             end
             slt_l: begin
-                comm_reg <= (comm_reg < i_PE_l) ? i_PE_l
-                                                : comm_reg;
+                addr_reg <= (addr_reg < i_PE_l) ? i_PE_l
+                                                : addr_reg;
             end
             slt_r: begin
-                comm_reg <= (comm_reg < i_PE_r) ? i_PE_r
-                                                : comm_reg;                
+                addr_reg <= (addr_reg < i_PE_r) ? i_PE_r
+                                                : addr_reg;                
             end
             slt_u: begin
-                comm_reg <= (comm_reg < i_PE_u) ? i_PE_u
-                                                : comm_reg;                
+                addr_reg <= (addr_reg < i_PE_u) ? i_PE_u
+                                                : addr_reg;                
             end
             slt_d: begin
-                comm_reg <= (comm_reg < i_PE_d) ? i_PE_d
-                                                : comm_reg;                
+                addr_reg <= (addr_reg < i_PE_d) ? i_PE_d
+                                                : addr_reg;                
             end
             sgt_l: begin
-                comm_reg <= (comm_reg > i_PE_l) ? i_PE_l
-                                                : comm_reg;
+                addr_reg <= (addr_reg > i_PE_l) ? i_PE_l
+                                                : addr_reg;
             end
             sgt_r: begin
-                comm_reg <= (comm_reg > i_PE_r) ? i_PE_r
-                                                : comm_reg;                 
+                addr_reg <= (addr_reg > i_PE_r) ? i_PE_r
+                                                : addr_reg;                 
             end
             sgt_u: begin
-                comm_reg <= (comm_reg > i_PE_u) ? i_PE_u
-                                                : comm_reg; 
+                addr_reg <= (addr_reg > i_PE_u) ? i_PE_u
+                                                : addr_reg; 
             end
             sgt_d: begin
-                comm_reg <= (comm_reg > i_PE_d) ? i_PE_d
-                                                : comm_reg; 
+                addr_reg <= (addr_reg > i_PE_d) ? i_PE_d
+                                                : addr_reg; 
             end
             nop: begin
-                comm_reg <= comm_reg;
+                addr_reg <= addr_reg;
             end
             endcase
         end else if (state[STATE_BOTTOM_END:0] == ROW_ALIGN) begin
-            // TODO
+            if (addr_reg == MAX_INT) begin
+                // addr_reg holds no value, should look to see if PE_u has something for it
+                if (i_PE_u >= FIRST_IN_ROW) begin
+                    addr_reg <= i_PE_u;
+                end else begin
+                    addr_reg <= MAX_INT;
+                end
+            end else if (addr_reg < FIRST_IN_ROW + SQRT_N && addr_reg >= FIRST_IN_ROW) begin
+                // addr_reg's key-value pair is in proper position, do nothing
+                addr_reg <= addr_reg;
+            end else if (addr_reg >= FIRST_IN_ROW + SQRT_N) begin
+                // addr_reg's key-value pair is too high up, move it down if possible
+                if (i_PE_d == MAX_INT) begin
+                    addr_reg <= i_PE_d;
+                end else begin
+                    addr_reg <= addr_reg;
+                end
+            end else begin
+                // Shouldn't get here ever
+                addr_reg <= addr_reg;
+            end
         end else if (state[STATE_BOTTOM_END:0] == COL_ALIGN) begin
-            // TODO
+            if (addr_reg == I) begin
+                // addr_reg holds the right value, copy into comm_reg
+                comm_reg <= addr_reg;
+                // Discard addr_reg
+                addr_reg <= MAX_INT;
+            end else if (addr_reg == MAX_INT) begin
+                // addr_reg holds no value
+                // should look to see if PE_l or PE_r has something for it
+                if (i_PE_l >= I) begin
+                    addr_reg <= i_PE_l;
+                end else if (i_PE_r <= I) begin
+                    addr_reg <= i_PE_r;
+                end
+            end else begin
+                // addr_reg holds some value that is not MAX_INT and is not I
+                // try to exchange with neighbors if possible
+                if (addr_reg > I) begin
+                    // should move right
+                    if (i_PE_r == MAX_INT || i_PE_r <= I) begin
+                        addr_reg <= i_PE_r;
+                    end else begin
+                        // no space in right neighbor, can't move
+                        addr_reg <= addr_reg;
+                    end
+                end else begin
+                    // should move left
+                    if (i_PE_l == MAX_INT || i_PE_l >= I) begin
+                        addr_reg <= i_PE_l;
+                    end else begin
+                        // no space in left neighbor, can't move
+                        addr_reg <= addr_reg;
+                    end
+                end
+            end
         end
     end
 endmodule
