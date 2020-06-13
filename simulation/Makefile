@@ -7,3 +7,18 @@ gdb:
 	g++ $(flags) -g -std=c++11 sort.cpp -pthread -o sort_gdb 
 profile:
 	g++ $(flags) -pg -std=c++11 sort.cpp -pthread -o sort_pg
+clean: 
+	rm -rf ../data \
+	rm ../simulation/sort* \
+	rm ../verilog/nanci \
+	rm ../verilog/*.vcd
+data: all
+	rm -rf ../data && \
+	mkdir ../data && \
+	./sort -N 2 -d; \
+	./sort -N 4 -d; \
+	./sort -N 8 -d; \
+	./sort -N 16 -d; \
+	./sort -N 32 -d; \
+	./sort -N 64 -d
+

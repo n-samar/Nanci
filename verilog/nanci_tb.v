@@ -7,15 +7,16 @@ module nanci_tb ();
     PE #(.N(4),
          .SQRT_N(2),
          .I(0),
+         .FILENAME("../data/0004/0000.data"),
          .ADDR_WIDTH(3),
          .SORT_CYCLES(4),
          .COMPUTE_CYCLES(7))
          PE_tb (.clk(clk),
           .rst(rst),
-          .i_PE_l(),
-          .i_PE_r(),
-          .i_PE_u(),
-          .i_PE_d(),
+          .i_PE_l(0),
+          .i_PE_r(0),
+          .i_PE_u(0),
+          .i_PE_d(0),
           .o_PE());
 
     always begin

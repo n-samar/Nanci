@@ -11,12 +11,13 @@ module counter #(parameter ADDR_WIDTH = 16)
     end
 endmodule
 
-module PE #(parameter N = 1024,                          // Total number of PEs
-            parameter SQRT_N = 32,                       // Side-length of mesh (= sqrt(N))
-            parameter I = 0,                             // Index of this PE
-            parameter ADDR_WIDTH = 10,                   // Width required to store index into PEs
-            parameter SORT_CYCLES = 222,                 // Number of cycles to run sort
-            parameter COMPUTE_CYCLES = 3)                // Specifies number of compute cycles        
+module PE #(parameter N = 1024,                            // Total number of PEs
+            parameter SQRT_N = 32,                         // Side-length of mesh (= sqrt(N))
+            parameter I = 0,                               // Index of this PE
+            parameter FILENAME = "../data/0004/0000.data", // Filename for instructions
+            parameter ADDR_WIDTH = 10,                     // Width required to store index into PEs
+            parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
+            parameter COMPUTE_CYCLES = 3)                  // Specifies number of compute cycles        
            (input                   clk,
             input                   rst,
             input [2*ADDR_WIDTH-1:0]  i_PE_l,
@@ -76,26 +77,7 @@ module PE #(parameter N = 1024,                          // Total number of PEs
     
     // Initialize instruction ROM
     initial begin
-        case (N)
-        4: begin
-            $readmemb("ROM_0004.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        16: begin
-            $readmemb("ROM_0016.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        64: begin
-            $readmemb("ROM_0064.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        256: begin
-            $readmemb("ROM_0256.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        1024: begin
-            $readmemb("ROM_1024.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        4096: begin
-            $readmemb("ROM_4096.data", inst_ROM, I*SORT_CYCLES, SORT_CYCLES);
-        end
-        endcase
+        $readmemb(FILENAME, inst_ROM);
     end
     // Next-state logic for state[STATE_BOTTOM_END:0]
     always @(*) begin
@@ -174,7 +156,7 @@ module PE #(parameter N = 1024,                          // Total number of PEs
     // Addressing logic
     always @(posedge clk) begin
         if (state[STATE_BOTTOM_END:0] == SORT) begin
-            case(inst_ROM[I*SORT_CYCLES+clk_counter*4+4 -: 4]) 
+            case(inst_ROM[clk_counter]) 
             s_l: begin
                 comm_reg <= i_PE_l;
             end

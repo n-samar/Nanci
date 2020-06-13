@@ -9,7 +9,12 @@
 #include <iterator>
 #include <algorithm>
 #include <unistd.h>
-#include<stack>
+#include <stack>
+#include <fstream>
+#include <sstream>
+#include <bitset>
+#include <sys/types.h> 
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -17,7 +22,7 @@ static bool RECORD = false;     // output execution diagram for each process (us
 static bool N_DEBUG = false;    // No asserts run when true (use `-a' or `--assert')
 static bool HUMAN = false;      // Generate human-readable output (use `-h')
 static bool PRINT_S = false;
-
+static bool DATA = false;       // Get data for readmemb
 struct inst {
     bool is_CAS;
     unsigned long cycle;
@@ -65,7 +70,7 @@ void make_submatrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height,
         }
     }
 
-    if (RECORD) {
+    if (RECORD || DATA) {
         inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
     }
 }
@@ -83,7 +88,7 @@ void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, s
         }
     }
 
-    if (RECORD) {
+    if (RECORD || DATA) {
         std::map<size_t, vector<struct inst> > *top = inst_map_stack.back();
 
         for (size_t cyc = cycle_low; cyc < cycle_high; cyc++) {
@@ -138,7 +143,7 @@ void CAS(int *a, size_t i, size_t j, size_t cycle) {
     }
     if (PRINT_S)
         cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
-    if (RECORD) {
+    if (RECORD || DATA) {
         (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, i, j});
         (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, j, i});
     }
@@ -166,7 +171,7 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     }
     if (PRINT_S)
         cout << "CAS: " << cycle << ", " << x << ", " << y << endl;
-    if (RECORD) {
+    if (RECORD || DATA) {
         (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, x, y});
         (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, y, x});
     }
@@ -321,34 +326,44 @@ void get_actions(size_t i) {
 
 void print_all(size_t cycles, size_t N_PE) {
     map<size_t, vector<struct inst> > chrono_insts = *(inst_map_stack.back());
-
-    cout << "cycle num, ";
-    for (size_t i = 0; i < N_PE; ++i) {
-        cout << std::setfill(' ') << std::setw(HUMAN?9:5)  << i;
-        if (i+1 < N_PE)
-            cout << ", ";
-    }
-
+    size_t *data = NULL;
+    if (DATA)
+        data = new size_t[cycles*N_PE];
+    if (RECORD) {
+        cout << "cycle num, ";
+        
+        for (size_t i = 0; i < N_PE; ++i) {
+            cout << std::setfill(' ') << std::setw(HUMAN?9:5)  << i;
+            if (i+1 < N_PE)
+                cout << ", ";
+        }
     cout << endl;
+    }    
+
+
     size_t N = size_t(sqrt(N_PE));
     for (size_t i = 0; i < cycles; ++i) {
         sort(chrono_insts[i].begin(), chrono_insts[i].end(), [](struct inst a, struct inst b) { return a.src > b.src; });
-        cout << std::setfill(' ') << std::setw(9) << i << ", ";
+        if (RECORD)
+            cout << std::setfill(' ') << std::setw(9) << i << ", ";
         for (size_t j = 0; j < N_PE; j++) {
             if (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) {
                 size_t dst = chrono_insts[i].back().dst;
                 string inst;
                 if (HUMAN) inst = "s  ";
                 else inst = "11_";
+                if (DATA) data[i*N_PE + j] = 0b1100;
                 if (chrono_insts[i].back().is_CAS) {
                     size_t snake_dst = index_to_snake(dst, N, N);
                     size_t snake_src = index_to_snake(j, N, N);
                     if (snake_src > snake_dst) {
                         if (HUMAN) inst = "slt";
                         else inst = "01_";
+                        if (DATA) data[i*N_PE + j] = 0b1100;
                     } else { 
                         if (HUMAN) inst = "sgt";
                         else inst = "10_";
+                        if (DATA) data[i*N_PE + j] = 0b1100;
                     }
                 }
                 string dir;
@@ -357,26 +372,56 @@ void print_all(size_t cycles, size_t N_PE) {
                 if (dst+1 == j) {
                     if (HUMAN) dir = "  left";
                     else dir = "00";
+                    if (DATA) data[i*N_PE + j] += 0b00;
                 } else if (dst-1 == j) {
                     if (HUMAN) dir = " right";
                     else dir = "01";
+                    if (DATA) data[i*N_PE + j] += 0b01;
                 } else if (dst+N == j) {
                     if (HUMAN) dir = "    up";
                     else dir = "10";
+                    if (DATA) data[i*N_PE + j] += 0b10;
                 } else if (dst-N == j) {
                     if (HUMAN) dir = "  down";
                     else dir = "11";
+                    if (DATA) data[i*N_PE + j] += 0b11;
                 }
-                cout << inst << dir;
+                if (RECORD)
+                    cout << inst << dir;
                 while (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) chrono_insts[i].pop_back();
             } else {
-                if (HUMAN) cout << "      nop";
-                else cout << "00_00";
+                if (RECORD) {
+                    if (HUMAN) cout << "      nop";
+                    else cout << "00_00";
+                }
+                if (DATA) data[i*N_PE + j] = 0b0000;
             }
-            if (j+1 < N_PE)
+            if (j+1 < N_PE && RECORD)
                 cout << ", ";
         }
-        cout << "\n";
+        if (RECORD)
+            cout << "\n";
+    }
+
+    if (DATA) {
+        stringstream ss;
+        ss << "../data/" << std::setfill('0') << setw(4) << N_PE << "/";
+        if (mkdir(ss.str().c_str(), 0777)) {
+            cout << "ERROR: couldn't create file!" << endl;
+            exit(EXIT_FAILURE);
+        }
+        for (size_t j = 0; j < N_PE; j++) {
+            stringstream ss2;
+            ss2 << "../data/" << std::setfill('0') << setw(4) << N_PE << "/"
+                << std::setfill('0') << setw(4) << j << ".data";
+            string filename = ss2.str();
+            ofstream outputFile;
+            outputFile.open(filename);
+            for (size_t i = 0; i < cycles; i++) {
+                outputFile << std::bitset<4>(data[i*N_PE + j]) << endl;
+            }
+            outputFile.close();
+        }
     }
 }
 
@@ -779,7 +824,7 @@ size_t sort_12n(int *a, size_t N, size_t M, size_t cycle) {
 }
 
 void print_usage() {
-    fprintf(stderr, "Usage: sort -N=power_of_two -[a|r|h|]\n");
+    fprintf(stderr, "Usage: sort -N=power_of_two -[a|r|h|d]\n");
 }
 
 bool pow_of_2(size_t N) {
@@ -794,7 +839,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    while((opt = getopt(argc, argv, "N:ahr")) != -1) {
+    while((opt = getopt(argc, argv, "N:ahrd")) != -1) {
         switch (opt) {
             case 'N':
                 z = stoul(optarg);
@@ -808,6 +853,9 @@ int main(int argc, char *argv[]) {
             case 'r':
                 RECORD = true;
                 break;
+            case 'd':
+                DATA = true;
+                break;
             default:
                 print_usage();
                 return -1;
@@ -818,7 +866,7 @@ int main(int argc, char *argv[]) {
         print_usage();
         return -1;
     }
-    if (RECORD)
+    if (RECORD || DATA)
         inst_map_stack.push_back(new std::map<size_t, vector<struct inst> >());
     size_t N = z;
     size_t M = z;
@@ -836,9 +884,10 @@ int main(int argc, char *argv[]) {
     delete[] b;
     
     cout << "sqrt(N) == " << N << "; cycles == " << cycle << endl;
-    if (RECORD) {
+    if (RECORD || DATA) {
         print_all(cycle, z*z);
-        cout << "slt down -- swap less than, i.e. swap only if my value is smaller than that of down." << endl;
+        if (RECORD)
+            cout << "slt down -- swap less than, i.e. swap only if my value is smaller than that of down." << endl;
         inst_map_stack.pop_back();
         assert(inst_map_stack.empty());
     }

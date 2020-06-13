@@ -4,3 +4,4 @@ sort_gdb
 sort_pg
 verilog/*.vcd
 verilog/nanci
+data
