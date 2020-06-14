@@ -15,10 +15,17 @@ clean:
 data: all
 	rm -rf ../data && \
 	mkdir ../data && \
-	./sort -N 2 -d; \
-	./sort -N 4 -d; \
-	./sort -N 8 -d; \
-	./sort -N 16 -d; \
-	./sort -N 32 -d; \
+	./sort -N 2 -d && \
+	./sort -N 4 -d && \
+	./sort -N 8 -d && \
+	./sort -N 16 -d && \
+	./sort -N 32 -d && \
 	./sort -N 64 -d
 
+test: all
+	./sort -N 2 -a && \
+	./sort -N 4 -a && \
+	./sort -N 8 -a && \
+	./sort -N 16 -a && \
+	./sort -N 32 -a && \
+	./sort -N 64 -a
