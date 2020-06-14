@@ -215,7 +215,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
         if (state[STATE_TOP_END:STATE_TOP_START] == PUT_ADDR) begin
             // Load destination and source addresses
             addr_reg[WIDTH-1:DATA_WIDTH] <= app_reg[WIDTH-1:DATA_WIDTH];
-            addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I;
+            addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I[ADDR_WIDTH-1:0];
         end else if (state[STATE_TOP_END:STATE_TOP_START] == LOAD_DATA) begin
             addr_reg <= {addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
         end else if (state[STATE_BOTTOM_END:0] == SORT) begin
