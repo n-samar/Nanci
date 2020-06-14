@@ -23,6 +23,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             parameter COMPUTE_CYCLES = 3)                  // Specifies number of compute cycles        
            (input                   clk,
             input                   rst,
+            input                   rst_memory,            // Value of memory register after reset
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_l,
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_r,
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_u,
@@ -35,12 +36,14 @@ module PE #(parameter N = 1024,                            // Total number of PE
     parameter STATE_TOP_START  = 3;
     parameter STATE_BOTTOM_END = 2;
 
+    // High state
     parameter PUT_ADDR  = 3'b111;
     parameter PUSH_ADDR = 3'b000;
     parameter LOAD_DATA = 3'b011;
     parameter GET_DATA  = 3'b001;
     parameter COMPUTE   = 3'b010;
 
+    // Low state
     parameter SORT      = 3'b000;
     parameter ROW_ALIGN = 3'b001;       // State when aligning each column's data to appropriate row
     parameter COL_ALIGN = 3'b010;       // State when aligning each row's data to appropriate column
@@ -79,7 +82,20 @@ module PE #(parameter N = 1024,                            // Total number of PE
                                         .rst(rst_counter),
                                         .counter(clk_counter));
 
+    wire [WIDTH-1:0] app_reg;
     reg [WIDTH-1:0] comm_reg;
+    application #(.N(N), 
+                  .I(I), 
+                  .DATA_WIDTH(DATA_WIDTH), 
+                  .ADDR_WIDTH(ADDR_WIDTH)) app_init (.clk(clk),
+                                                     .rst(rst),
+                                                     .runnable(state[STATE_TOP_END-1:STATE_TOP_START] == COMPUTE),
+                                                     .comm_reg(comm_reg),
+                                                     .app_reg(app_reg),
+                                                     .is_write(is_write));
+
+    // TODO: implement writes via is_write
+
     reg [WIDTH-1:0] addr_reg;    // Extra register needed for COL_ALIGN
     reg [DATA_WIDTH-1:0]   memory;      // Data held by processor I
     assign o_PE = addr_reg;
@@ -169,6 +185,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
     always @(posedge clk) begin
         if (rst) begin
             state <= {COMPUTE, NOP};
+            memory <= rst_memory;
         end else begin
             state <= next_state;
         end
@@ -176,9 +193,9 @@ module PE #(parameter N = 1024,                            // Total number of PE
 
     // Addressing logic
     always @(posedge clk) begin
-        if (state[STATE_TOP_END:STATE_TOP_START]) begin
+        if (state[STATE_TOP_END:STATE_TOP_START] == PUT_ADDR) begin
             // Load destination and source addresses
-            addr_reg[WIDTH-1:DATA_WIDTH] <= comm_reg[WIDTH-1:DATA_WIDTH];
+            addr_reg[WIDTH-1:DATA_WIDTH] <= app_reg[WIDTH-1:DATA_WIDTH];
             addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I;
         end else if (state[STATE_TOP_END:STATE_TOP_START] == LOAD_DATA) begin
             addr_reg <= {comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
@@ -290,5 +307,23 @@ module PE #(parameter N = 1024,                            // Total number of PE
                 end
             end
         end
+    end
+endmodule
+
+// User application module
+module application #(parameter N = 1024,
+                     parameter I = 0,
+                     parameter DATA_WIDTH = 10,
+                     parameter ADDR_WIDTH = 10) 
+                    (input clk,
+                     input rst,
+                     input runnable,
+                     input  [ADDR_WIDTH+DATA_WIDTH-1:0] comm_reg,
+                     output reg [ADDR_WIDTH+DATA_WIDTH-1:0] app_reg,
+                     output is_write);
+    always @(posedge clk) begin
+        if (runnable) begin
+            app_reg <= 0;
+    end
     end
 endmodule

@@ -14,6 +14,7 @@ module nanci_tb ();
          .COMPUTE_CYCLES(7))
          PE_tb (.clk(clk),
           .rst(rst),
+          .rst_memory(1),
           .i_PE_l(0),
           .i_PE_r(0),
           .i_PE_u(0),
