@@ -31,14 +31,15 @@ module PE #(parameter N = 1024,                            // Total number of PE
 
     parameter WIDTH            = ADDR_WIDTH + DATA_WIDTH;
     parameter MAX_INT          = N;     // Reserved for NOP keys
-    parameter STATE_TOP_END    = 4;
+    parameter STATE_TOP_END    = 5;
     parameter STATE_TOP_START  = 3;
     parameter STATE_BOTTOM_END = 2;
 
-    parameter PUSH_ADDR = 2'b00;
-    parameter LOAD_DATA = 2'b11;
-    parameter GET_DATA  = 2'b01;
-    parameter COMPUTE   = 2'b10;
+    parameter PUT_ADDR  = 3'b111;
+    parameter PUSH_ADDR = 3'b000;
+    parameter LOAD_DATA = 3'b011;
+    parameter GET_DATA  = 3'b001;
+    parameter COMPUTE   = 3'b010;
 
     parameter SORT      = 3'b000;
     parameter ROW_ALIGN = 3'b001;       // State when aligning each column's data to appropriate row
@@ -87,7 +88,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
     initial begin
         $readmemb(FILENAME, inst_ROM);
     end
-    // Next-state logic for state[STATE_BOTTOM_END:0]
+    // Next-state logic for low state
     always @(*) begin
         case (state[STATE_BOTTOM_END:0])
         SORT: begin
@@ -126,15 +127,19 @@ module PE #(parameter N = 1024,                            // Total number of PE
     endcase 
     end
 
-    // Next-state logic for state[STATE_TOP_END:STATE_TOP_START]
+    // Next-state logic for high state
     always @(*) begin
         case(state[STATE_TOP_END:STATE_TOP_START])
         COMPUTE: begin
             if (clk_counter == COMPUTE_CYCLES) begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = PUSH_ADDR;
+                next_state[STATE_TOP_END:STATE_TOP_START] = PUT_ADDR;
             end else begin
                 next_state[STATE_TOP_END:STATE_TOP_START] = COMPUTE;
             end
+        end
+        PUT_ADDR: begin
+            // Load target and source address into addr_reg
+            next_state[STATE_TOP_END:STATE_TOP_START] = PUSH_ADDR;
         end
         PUSH_ADDR: begin
             if (clk_counter == SQRT_N && state[STATE_BOTTOM_END:0] == COL_ALIGN) begin
@@ -171,8 +176,12 @@ module PE #(parameter N = 1024,                            // Total number of PE
 
     // Addressing logic
     always @(posedge clk) begin
-        if (state[STATE_TOP_END:STATE_TOP_BEGIN] == LOAD_DATA) begin
-            addr_state <= {comm_reg[ADDR_WIDTH-1:0], memory};
+        if (state[STATE_TOP_END:STATE_TOP_START]) begin
+            // Load destination and source addresses
+            addr_reg[WIDTH-1:DATA_WIDTH] <= comm_reg[WIDTH-1:DATA_WIDTH];
+            addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I;
+        end else if (state[STATE_TOP_END:STATE_TOP_START] == LOAD_DATA) begin
+            addr_reg <= {comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
         end else if (state[STATE_BOTTOM_END:0] == SORT) begin
             case(inst_ROM[clk_counter]) 
             s_l: begin
