@@ -1,8 +1,10 @@
-.a.out
 sort
 sort_gdb
 sort_pg
-verilog/*.vcd
+*.vcd
 verilog/nanci
 data
 verilog/a.out
+*~
+objnanci*
+a.out

@@ -1,3 +1,14 @@
+module assert_always (input clk,
+                      input test);
+    always @(posedge clk) begin
+        if (test !== 1) begin
+	        $write("%c[1;31m",27);	   
+            $display("[ASSERTION FAILED: %m]");
+	        $write("%c[0m",27);
+            $finish();
+        end
+    end
+endmodule
 
 module counter #(parameter ADDR_WIDTH = 16)
                 (input                       clk,
@@ -23,7 +34,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             parameter COMPUTE_CYCLES = 3)                  // Specifies number of compute cycles        
            (input                   clk,
             input                   rst,
-            input                   rst_memory,            // Value of memory register after reset
+            input  [DATA_WIDTH-1:0]       rst_memory,            // Value of memory register after reset
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_l,
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_r,
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_u,
@@ -94,7 +105,15 @@ module PE #(parameter N = 1024,                            // Total number of PE
                                                      .app_reg(app_reg),
                                                      .is_write(is_write));
 
+    assert_always assert_data_width_geq_addr_width (clk, (DATA_WIDTH >= ADDR_WIDTH));
+
     // TODO: implement writes via is_write
+
+
+
+    initial begin
+        
+    end
 
     reg [WIDTH-1:0] addr_reg;    // Extra register needed for COL_ALIGN
     reg [DATA_WIDTH-1:0]   memory;      // Data held by processor I
@@ -198,7 +217,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             addr_reg[WIDTH-1:DATA_WIDTH] <= app_reg[WIDTH-1:DATA_WIDTH];
             addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I;
         end else if (state[STATE_TOP_END:STATE_TOP_START] == LOAD_DATA) begin
-            addr_reg <= {comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
+            addr_reg <= {addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
         end else if (state[STATE_BOTTOM_END:0] == SORT) begin
             case(inst_ROM[clk_counter]) 
             s_l: begin

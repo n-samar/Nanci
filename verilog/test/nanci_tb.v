@@ -4,21 +4,21 @@ module nanci_tb ();
     reg clk;
     reg rst;
 
-    PE #(.N(4),
-         .SQRT_N(2),
+    PE #(.N(1),
+         .SQRT_N(1),
          .I(0),
-         .FILENAME("../data/0004/0000.data"),
+         .FILENAME("test/tb_data00.data"),
          .ADDR_WIDTH(3),
-         .SORT_CYCLES(4),
+         .SORT_CYCLES(1),
          .FIRST_IN_ROW(0),
-         .COMPUTE_CYCLES(7))
+         .COMPUTE_CYCLES(1))
          PE_tb (.clk(clk),
           .rst(rst),
-          .rst_memory(1),
-          .i_PE_l(0),
-          .i_PE_r(0),
-          .i_PE_u(0),
-          .i_PE_d(0),
+          .rst_memory(0),
+          .i_PE_l(1),
+          .i_PE_r(2),
+          .i_PE_u(3),
+          .i_PE_d(4),
           .o_PE());
 
     always begin
