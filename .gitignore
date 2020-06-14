@@ -5,3 +5,4 @@ sort_pg
 verilog/*.vcd
 verilog/nanci
 data
+verilog/a.out
