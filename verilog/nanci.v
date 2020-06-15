@@ -312,43 +312,205 @@ module application #(parameter N = 1024,
     end
 endmodule
 
-module mesh #(parameter N = 1024,                            // Total number of PEs
-            parameter SQRT_N = 32,                         // Side-length of mesh (= sqrt(N))
-            parameter I = 0,                               // Index of this PE
-            parameter FILENAME = "../data/0004/0000.data", // Filename for instructions
-            parameter ADDR_WIDTH = 10,                     // Width required to store index into PEs
-            parameter DATA_WIDTH = 10,                     // Width of memory register in each PE
-            parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
-            parameter FIRST_IN_ROW = 0,                    // Index of first PE in this PE's row
-            parameter MAX_INT = 10'b11111_11111,
+module mesh #(parameter N = 4,                            // Total number of PEs
+            parameter SQRT_N = 2,                         // Side-length of mesh (= sqrt(N))
+            parameter ADDR_WIDTH = 2,                     // Width required to store index into PEs
+            parameter DATA_WIDTH = 2,                     // Width of memory register in each PE
+            parameter SORT_CYCLES = 4,                   // Number of cycles to run sort
+            parameter MAX_INT = 4'b1111,
             parameter COMPUTE_CYCLES = 3)
             (input clk,
              input rst);
              
     parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
-    wire []
+    parameter hello = "hello";
+    parameter X = "../data/0004/0000.data../data/0004/0001.data../data/0004/0002.data../data/0004/0003.data";
+    wire [WIDTH-1:0] PE[N-1:0];
 
     genvar i;
     generate
-        for (i = 0; i < N*N; i=i+1) begin : GEN
-            PE #(.N(1),
-                .SQRT_N(0),
-                .I(0),
-                .FILENAME("test/testdata/tb_data_s_r.data"),
-                .ADDR_WIDTH(3),
-                .DATA_WIDTH(3),
-                .SORT_CYCLES(1),
-                .FIRST_IN_ROW(0),
-                .MAX_INT(6'b111_111),
-                .COMPUTE_CYCLES(1))
-                PE_tb (.clk(clk),
-                .rst(rst),
-                .rst_memory(3'b000),
-                .i_PE_l(6'b000_001),
-                .i_PE_r(6'b000_010),
-                .i_PE_u(6'b000_011),
-                .i_PE_d(6'b000_100),
-                .o_PE(o_PE));
+        for (i = 0; i < N; i=i+1) begin : GEN
+            if (i == 0) begin
+                // top-left PE
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(MAX_INT),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE_init (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(MAX_INT),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(MAX_INT),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end else if (i == N-1) begin
+                // bottom-right PE
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(MAX_INT),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(MAX_INT),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(MAX_INT),
+                        .o_PE(PE[i]));
+            end else if (i == N-SQRT_N) begin 
+                // bottom-left PE
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(MAX_INT),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(MAX_INT),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(MAX_INT),
+                        .o_PE(PE[i]));
+            end else if (i == SQRT_N-1) begin
+                // top-right PE
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(MAX_INT),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(MAX_INT),
+                        .i_PE_u(MAX_INT),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end else if (i < SQRT_N) begin
+                // top row
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(MAX_INT),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(MAX_INT),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end else if (i >= N-SQRT_N) begin
+                // bottom row
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(4'b1111),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(MAX_INT),
+                        .o_PE(PE[i]));
+            end else if (i == first_in_row) begin
+                // left column
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(4'b1111),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(MAX_INT),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end else if (i == first_in_row+SQRT_N-1) begin
+                // right column
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(4'b1111),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(MAX_INT),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end else begin
+                // in middle of mesh
+                PE #(.N(N),
+                    .SQRT_N(SQRT_N),
+                    .I(i),
+                    .FILENAME(X[(i+1)*22*8:i*22*8]),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .DATA_WIDTH(DATA_WIDTH),
+                    .SORT_CYCLES(SORT_CYCLES),
+                    .FIRST_IN_ROW(i%SQRT_N),
+                    .MAX_INT(4'b1111),
+                    .COMPUTE_CYCLES(COMPUTE_CYCLES))
+                    PE (.clk(clk),
+                        .rst(rst),
+                        .rst_memory(2'b00),
+                        .i_PE_l(PE[i-1]),
+                        .i_PE_r(PE[i+1]),
+                        .i_PE_u(PE[i-SQRT_N]),
+                        .i_PE_d(PE[i+SQRT_N]),
+                        .o_PE(PE[i]));
+            end
         end
     endgenerate
 endmodule

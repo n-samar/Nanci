@@ -30,6 +30,7 @@ run:
 clean:
 	rm -rf test/objnanci*
 	rm -rf ../data \
-	rm ../simulation/sort* \
+	rm ../simulation/sort \
+	rm ../simulation/sort_* \
 	rm ../verilog/nanci \
 	rm ../verilog/*.vcd
