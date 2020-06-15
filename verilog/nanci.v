@@ -79,10 +79,10 @@ module PE #(parameter N = 1024,                            // Total number of PE
     wire lt_d = (o_PE[WIDTH-1:DATA_WIDTH] < i_PE_d[WIDTH-1:DATA_WIDTH]);
 
     reg [3:0] state;
-    reg [3:0] next_state;
+    reg [3:0] next_state = 4'b0000;
     reg [3:0] inst_ROM [SORT_CYCLES-1:0];
 
-    wire                rst_counter = (state != next_state) | rst;
+    wire rst_counter = (state != next_state) | rst;
     wire [ADDR_WIDTH-1:0] clk_counter;
     counter #(ADDR_WIDTH) counter_init (.clk(clk),
                                         .rst(rst_counter),
@@ -104,7 +104,17 @@ module PE #(parameter N = 1024,                            // Total number of PE
 
     // TODO: implement writes via is_write
 
-
+    // Used for debugging
+    wire s_COMPUTE = (state == COMPUTE);
+    wire s_PUT_ADDR = (state == PUT_ADDR);
+    wire s_PUSH_ADDR_SORT = (state == PUSH_ADDR_SORT);
+    wire s_PUSH_ADDR_COL_ALIGN = (state == PUSH_ADDR_COL_ALIGN);
+    wire s_PUSH_ADDR_ROW_ALIGN = (state == PUSH_ADDR_ROW_ALIGN);
+    wire s_LOAD_DATA = (state == LOAD_DATA);
+    wire s_GET_DATA_SORT = (state == GET_DATA_SORT);
+    wire s_GET_DATA_ROW_ALIGN = (state == GET_DATA_ROW_ALIGN);
+    wire s_GET_DATA_COL_ALIGN = (state == GET_DATA_COL_ALIGN);
+    wire [3:0] s_INSTRUCTION = inst_ROM[clk_counter];
 
     initial begin
         
@@ -118,6 +128,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
     initial begin
         $readmemb(FILENAME, inst_ROM);
     end
+
     // Next-state logic
     always @(*) begin
         case (state)
@@ -164,7 +175,6 @@ module PE #(parameter N = 1024,                            // Total number of PE
         end
     endcase 
     end
-
 
     always @(posedge clk) begin
         if (rst) begin
@@ -307,7 +317,7 @@ module application #(parameter N = 1024,
                      output is_write);
     always @(posedge clk) begin
         if (runnable) begin
-            app_reg <= 0;
+            app_reg <= N-I;
     end
     end
 endmodule
@@ -324,7 +334,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
              
     parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
     parameter hello = "hello";
-    parameter X = "../data/0004/0000.data../data/0004/0001.data../data/0004/0002.data../data/0004/0003.data";
+    parameter X = "../data/0004/0003.data../data/0004/0002.data../data/0004/0001.data../data/0004/0000.data";
     wire [WIDTH-1:0] PE[N-1:0];
 
     genvar i;
