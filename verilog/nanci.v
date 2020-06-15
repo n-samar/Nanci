@@ -42,7 +42,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             input [ADDR_WIDTH+DATA_WIDTH-1:0]  i_PE_d,
             output [ADDR_WIDTH+DATA_WIDTH-1:0] o_PE);
 
-    parameter WIDTH            = ADDR_WIDTH + DATA_WIDTH;
+    parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
 
     // States
     parameter COMPUTE             = 4'b0000;
@@ -310,4 +310,45 @@ module application #(parameter N = 1024,
             app_reg <= 0;
     end
     end
+endmodule
+
+module mesh #(parameter N = 1024,                            // Total number of PEs
+            parameter SQRT_N = 32,                         // Side-length of mesh (= sqrt(N))
+            parameter I = 0,                               // Index of this PE
+            parameter FILENAME = "../data/0004/0000.data", // Filename for instructions
+            parameter ADDR_WIDTH = 10,                     // Width required to store index into PEs
+            parameter DATA_WIDTH = 10,                     // Width of memory register in each PE
+            parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
+            parameter FIRST_IN_ROW = 0,                    // Index of first PE in this PE's row
+            parameter MAX_INT = 10'b11111_11111,
+            parameter COMPUTE_CYCLES = 3)
+            (input clk,
+             input rst);
+             
+    parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
+    wire []
+
+    genvar i;
+    generate
+        for (i = 0; i < N*N; i=i+1) begin : GEN
+            PE #(.N(1),
+                .SQRT_N(0),
+                .I(0),
+                .FILENAME("test/testdata/tb_data_s_r.data"),
+                .ADDR_WIDTH(3),
+                .DATA_WIDTH(3),
+                .SORT_CYCLES(1),
+                .FIRST_IN_ROW(0),
+                .MAX_INT(6'b111_111),
+                .COMPUTE_CYCLES(1))
+                PE_tb (.clk(clk),
+                .rst(rst),
+                .rst_memory(3'b000),
+                .i_PE_l(6'b000_001),
+                .i_PE_r(6'b000_010),
+                .i_PE_u(6'b000_011),
+                .i_PE_d(6'b000_100),
+                .o_PE(o_PE));
+        end
+    endgenerate
 endmodule

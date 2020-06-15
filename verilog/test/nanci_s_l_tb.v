@@ -47,9 +47,9 @@ module nanci_tb ();
     end
 
     // GTKwave dumpfile setup
-    initial
+    /*initial
     begin
         $dumpfile("nanci.vcd");
         $dumpvars(0,nanci_tb);
-    end 
+    end*/
 endmodule
