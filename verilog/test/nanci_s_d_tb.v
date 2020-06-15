@@ -14,6 +14,7 @@ module nanci_tb ();
          .DATA_WIDTH(3),
          .SORT_CYCLES(1),
          .FIRST_IN_ROW(0),
+         .MAX_INT(6'b111_111),
          .COMPUTE_CYCLES(1))
          PE_tb (.clk(clk),
           .rst(rst),
@@ -32,7 +33,7 @@ module nanci_tb ();
         clk = 1'b0;
         rst = 1'b1;
         #20 rst = 1'b0;
-       #100;
+        #45;
         if (o_PE != 4) begin
 	   $write("%c[1;31m",27);	   
            $display("[ERROR: nanci_s_d_tb.v] bad output: %b != 4", o_PE);

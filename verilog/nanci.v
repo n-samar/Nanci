@@ -31,6 +31,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
             parameter DATA_WIDTH = 10,                     // Width of memory register in each PE
             parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
             parameter FIRST_IN_ROW = 0,                    // Index of first PE in this PE's row
+            parameter MAX_INT = 10'b11111_11111,
             parameter COMPUTE_CYCLES = 3)                  // Specifies number of compute cycles        
            (input                   clk,
             input                   rst,
@@ -42,23 +43,17 @@ module PE #(parameter N = 1024,                            // Total number of PE
             output [ADDR_WIDTH+DATA_WIDTH-1:0] o_PE);
 
     parameter WIDTH            = ADDR_WIDTH + DATA_WIDTH;
-    parameter MAX_INT          = N;     // Reserved for NOP keys
-    parameter STATE_TOP_END    = 5;
-    parameter STATE_TOP_START  = 3;
-    parameter STATE_BOTTOM_END = 2;
 
-    // High state
-    parameter PUT_ADDR  = 3'b111;
-    parameter PUSH_ADDR = 3'b000;
-    parameter LOAD_DATA = 3'b011;
-    parameter GET_DATA  = 3'b001;
-    parameter COMPUTE   = 3'b010;
-
-    // Low state
-    parameter SORT      = 3'b000;
-    parameter ROW_ALIGN = 3'b001;       // State when aligning each column's data to appropriate row
-    parameter COL_ALIGN = 3'b010;       // State when aligning each row's data to appropriate column
-    parameter NOP       = 3'b111;       // Do nothing (during COMPUTE)
+    // States
+    parameter COMPUTE             = 4'b0000;
+    parameter PUT_ADDR            = 4'b0001;
+    parameter PUSH_ADDR_SORT      = 4'b0010;
+    parameter PUSH_ADDR_ROW_ALIGN = 4'b0011;
+    parameter PUSH_ADDR_COL_ALIGN = 4'b0100;
+    parameter LOAD_DATA           = 4'b0101;
+    parameter GET_DATA_SORT       = 4'b0110;      
+    parameter GET_DATA_ROW_ALIGN  = 4'b0111;     
+    parameter GET_DATA_COL_ALIGN  = 4'b1000;       
 
     // Instructions
     parameter s_l  = 4'b11_00;
@@ -83,8 +78,8 @@ module PE #(parameter N = 1024,                            // Total number of PE
     wire lt_u = (o_PE[WIDTH-1:DATA_WIDTH] < i_PE_u[WIDTH-1:DATA_WIDTH]);
     wire lt_d = (o_PE[WIDTH-1:DATA_WIDTH] < i_PE_d[WIDTH-1:DATA_WIDTH]);
 
-    reg [STATE_TOP_END:0] state;
-    reg [STATE_TOP_END:0] next_state;
+    reg [3:0] state;
+    reg [3:0] next_state;
     reg [3:0] inst_ROM [SORT_CYCLES-1:0];
 
     wire                rst_counter = (state != next_state) | rst;
@@ -100,7 +95,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
                   .DATA_WIDTH(DATA_WIDTH), 
                   .ADDR_WIDTH(ADDR_WIDTH)) app_init (.clk(clk),
                                                      .rst(rst),
-                                                     .runnable(state[STATE_TOP_END-1:STATE_TOP_START] == COMPUTE),
+                                                     .runnable(state == COMPUTE),
                                                      .comm_reg(comm_reg),
                                                      .app_reg(app_reg),
                                                      .is_write(is_write));
@@ -123,87 +118,57 @@ module PE #(parameter N = 1024,                            // Total number of PE
     initial begin
         $readmemb(FILENAME, inst_ROM);
     end
-    // Next-state logic for low state
+    // Next-state logic
     always @(*) begin
-        case (state[STATE_BOTTOM_END:0])
-        SORT: begin
-            if (clk_counter == SORT_CYCLES) begin
-                next_state[STATE_BOTTOM_END:0] = ROW_ALIGN;
-            end else begin
-                next_state[STATE_BOTTOM_END:0] = SORT;
+        case (state)
+        COMPUTE: begin
+            if (clk_counter == COMPUTE_CYCLES-1) begin
+                next_state = PUT_ADDR;
             end
         end
-        ROW_ALIGN: begin
+        PUT_ADDR: begin
+            next_state = PUSH_ADDR_SORT;
+        end
+        PUSH_ADDR_SORT: begin
+            if (clk_counter == SORT_CYCLES-1) begin
+                next_state = PUSH_ADDR_ROW_ALIGN;
+            end
+        end
+        PUSH_ADDR_ROW_ALIGN: begin
             if (clk_counter == SQRT_N) begin
-                next_state[STATE_BOTTOM_END:0] = COL_ALIGN;
-            end else begin
-                next_state[STATE_BOTTOM_END:0] = ROW_ALIGN;
+                next_state = PUSH_ADDR_COL_ALIGN;
             end
         end
-        COL_ALIGN: begin
-            if (clk_counter == SQRT_N) begin 
-                if (state[STATE_TOP_END:STATE_TOP_START] == PUSH_ADDR) begin
-                    next_state[STATE_BOTTOM_END:0] = SORT;
-                end else begin
-                    next_state[STATE_BOTTOM_END:0] = NOP;
-                end
-            end else begin
-                next_state[STATE_BOTTOM_END:0] = COL_ALIGN;
+        PUSH_ADDR_COL_ALIGN: begin
+            if (clk_counter == SQRT_N) begin
+                next_state = LOAD_DATA;
             end
         end
-        NOP: begin
-            if (state[STATE_TOP_END:STATE_TOP_START] == PUSH_ADDR 
-                || state[STATE_TOP_END:STATE_TOP_START] == GET_DATA) begin
-                next_state[STATE_BOTTOM_END:0] = SORT;
-            end else begin
-                next_state[STATE_BOTTOM_END:0] = NOP;
+        LOAD_DATA: begin
+            next_state = GET_DATA_SORT;
+        end
+        GET_DATA_SORT: begin
+            if (clk_counter == SORT_CYCLES-1) begin
+                next_state = GET_DATA_ROW_ALIGN;
+            end
+        end
+        GET_DATA_ROW_ALIGN: begin
+            if (clk_counter == SQRT_N) begin
+                next_state = GET_DATA_COL_ALIGN;
+            end
+        end
+        GET_DATA_COL_ALIGN: begin
+            if (clk_counter == SQRT_N) begin
+                next_state = COMPUTE;
             end
         end
     endcase 
     end
 
-    // Next-state logic for high state
-    always @(*) begin
-        case(state[STATE_TOP_END:STATE_TOP_START])
-        COMPUTE: begin
-            if (clk_counter == COMPUTE_CYCLES) begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = PUT_ADDR;
-            end else begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = COMPUTE;
-            end
-        end
-        PUT_ADDR: begin
-            // Load target and source address into addr_reg
-            next_state[STATE_TOP_END:STATE_TOP_START] = PUSH_ADDR;
-        end
-        PUSH_ADDR: begin
-            if (clk_counter == SQRT_N && state[STATE_BOTTOM_END:0] == COL_ALIGN) begin
-                if (state[STATE_TOP_END:STATE_BOTTOM_END] == PUSH_ADDR) begin
-                    next_state[STATE_TOP_END:STATE_TOP_START] = LOAD_DATA;
-                end else if (state[STATE_TOP_END:STATE_BOTTOM_END] == GET_DATA) begin
-                    next_state[STATE_TOP_END:STATE_TOP_START] = COMPUTE;
-                end
-            end else begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = PUSH_ADDR;
-            end
-        end
-        GET_DATA: begin
-            if (clk_counter == SQRT_N && state[STATE_BOTTOM_END:0] == COL_ALIGN) begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = COMPUTE;
-            end else begin
-                next_state[STATE_TOP_END:STATE_TOP_START] = GET_DATA;
-            end            
-        end
-        LOAD_DATA: begin
-            next_state[STATE_TOP_END:STATE_TOP_START] = GET_DATA;
-        end
-        endcase
-    end
-
 
     always @(posedge clk) begin
         if (rst) begin
-            state <= {COMPUTE, NOP};
+            state <= COMPUTE;
             memory <= rst_memory;
         end else begin
             state <= next_state;
@@ -212,13 +177,13 @@ module PE #(parameter N = 1024,                            // Total number of PE
 
     // Addressing logic
     always @(posedge clk) begin
-        if (state[STATE_TOP_END:STATE_TOP_START] == PUT_ADDR) begin
+        if (state == PUT_ADDR) begin
             // Load destination and source addresses
             addr_reg[WIDTH-1:DATA_WIDTH] <= app_reg[WIDTH-1:DATA_WIDTH];
             addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I[ADDR_WIDTH-1:0];
-        end else if (state[STATE_TOP_END:STATE_TOP_START] == LOAD_DATA) begin
+        end else if (state == LOAD_DATA) begin
             addr_reg <= {addr_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
-        end else if (state[STATE_BOTTOM_END:0] == SORT) begin
+        end else if (state == PUSH_ADDR_SORT || state == GET_DATA_SORT) begin
             case(inst_ROM[clk_counter]) 
             s_l: begin
                 addr_reg <= i_PE_l;
@@ -268,7 +233,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
                 addr_reg <= addr_reg;
             end
             endcase
-        end else if (state[STATE_BOTTOM_END:0] == ROW_ALIGN) begin
+        end else if (state == PUSH_ADDR_ROW_ALIGN || state == GET_DATA_ROW_ALIGN) begin
             if (addr_reg[WIDTH-1:DATA_WIDTH] == MAX_INT) begin
                 // addr_reg holds no value, should look to see if PE_u has something for it
                 if (i_PE_u[WIDTH-1:DATA_WIDTH] >= FIRST_IN_ROW) begin
@@ -290,7 +255,7 @@ module PE #(parameter N = 1024,                            // Total number of PE
                 // Shouldn't get here ever
                 addr_reg <= addr_reg;
             end
-        end else if (state[STATE_BOTTOM_END:0] == COL_ALIGN) begin
+        end else if (state == PUSH_ADDR_COL_ALIGN || state == GET_DATA_COL_ALIGN) begin
             if (addr_reg[WIDTH-1:DATA_WIDTH] == I) begin
                 // addr_reg holds the right value, copy into comm_reg
                 comm_reg <= addr_reg;

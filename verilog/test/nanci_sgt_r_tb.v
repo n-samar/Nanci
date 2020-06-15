@@ -17,6 +17,7 @@ module nanci_sgt_r_tb ();
          .DATA_WIDTH(3),
          .SORT_CYCLES(1),
          .FIRST_IN_ROW(0),
+         .MAX_INT(6'b111_111),
          .COMPUTE_CYCLES(1))
          PE_tb (.clk(clk),
           .rst(rst),
@@ -39,7 +40,7 @@ module nanci_sgt_r_tb ();
         i_PE_u = 6'b011000;
         i_PE_d = 6'b100000;
         #20 rst = 1'b0;
-       #65;
+        #45;
        if (o_PE != 6'b000101) begin 	  	  
 	  $write("%c[1;31m",27);	  
           $display("[ERROR: %m] bad output: %b != 000101", o_PE);
