@@ -114,11 +114,8 @@ module PE #(parameter N = 1024,                            // Total number of PE
     wire s_GET_DATA_SORT = (state == GET_DATA_SORT);
     wire s_GET_DATA_ROW_ALIGN = (state == GET_DATA_ROW_ALIGN);
     wire s_GET_DATA_COL_ALIGN = (state == GET_DATA_COL_ALIGN);
-    wire [3:0] s_INSTRUCTION = inst_ROM[clk_counter];
+    wire [3:0] s_INSTRUCTION = inst_ROM[clk_counter] & {4{(s_PUSH_ADDR_SORT | s_GET_DATA_SORT)}};
 
-    initial begin
-        
-    end
 
     reg [WIDTH-1:0] addr_reg;    // Extra register needed for COL_ALIGN
     reg [DATA_WIDTH-1:0]   memory;      // Data held by processor I
@@ -317,7 +314,8 @@ module application #(parameter N = 1024,
                      output is_write);
     always @(posedge clk) begin
         if (runnable) begin
-            app_reg <= N-I;
+            app_reg[3:2] <= N-1-I;
+            app_reg[1:0] <= I;
     end
     end
 endmodule
@@ -374,7 +372,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                     .COMPUTE_CYCLES(COMPUTE_CYCLES))
                     PE (.clk(clk),
                         .rst(rst),
-                        .rst_memory(2'b00),
+                        .rst_memory(2'b11),
                         .i_PE_l(PE[i-1]),
                         .i_PE_r(MAX_INT),
                         .i_PE_u(PE[i-SQRT_N]),
@@ -394,7 +392,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                     .COMPUTE_CYCLES(COMPUTE_CYCLES))
                     PE (.clk(clk),
                         .rst(rst),
-                        .rst_memory(2'b00),
+                        .rst_memory(2'b10),
                         .i_PE_l(MAX_INT),
                         .i_PE_r(PE[i+1]),
                         .i_PE_u(PE[i-SQRT_N]),
@@ -414,7 +412,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                     .COMPUTE_CYCLES(COMPUTE_CYCLES))
                     PE (.clk(clk),
                         .rst(rst),
-                        .rst_memory(2'b00),
+                        .rst_memory(2'b01),
                         .i_PE_l(PE[i-1]),
                         .i_PE_r(MAX_INT),
                         .i_PE_u(MAX_INT),
@@ -454,7 +452,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                     .COMPUTE_CYCLES(COMPUTE_CYCLES))
                     PE (.clk(clk),
                         .rst(rst),
-                        .rst_memory(2'b00),
+                        .rst_memory(I),
                         .i_PE_l(PE[i-1]),
                         .i_PE_r(PE[i+1]),
                         .i_PE_u(PE[i-SQRT_N]),
