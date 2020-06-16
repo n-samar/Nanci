@@ -23,16 +23,13 @@ test: clean
 	./objnanci_sgt_r && \
 	./objnanci_sgt_u && \
 	./objnanci_sgt_d && \
-	iverilog test/mesh_tb.v nanci.v -o objnanci_mesh_4 && \
+	iverilog -g2005-sv test/mesh_04_tb.v nanci.v -o objnanci_mesh_4 && \
 	./objnanci_mesh_4
 
 run:
 	iverilog -Wall test/nanci_s_l_tb.v nanci.v -o objnanci_s_l && \
 	./nanci
 clean:
-	rm -rf test/objnanci*
-	rm -rf ../data \
-	rm ../simulation/sort \
-	rm ../simulation/sort_* \
-	rm ../verilog/nanci \
-	rm ../verilog/*.vcd
+	rm -rf test/objnanci* && \
+	rm -rf ../verilog/nanci && \
+	rm -rf ../verilog/*.vcd
