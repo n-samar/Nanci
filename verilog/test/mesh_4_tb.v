@@ -4,8 +4,8 @@ module nanci_tb ();
     reg clk;
     reg rst;
 
-    mesh mesh_tb (.clk(clk),
-          .rst(rst));
+   mesh mesh_tb (.clk(clk),
+		 .rst(rst));
 
     always begin
         #5 clk = ~clk;

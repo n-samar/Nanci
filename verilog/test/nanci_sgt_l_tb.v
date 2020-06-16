@@ -16,9 +16,7 @@ module nanci_sgt_l_tb ();
          .ADDR_WIDTH(3),
          .DATA_WIDTH(3),
          .SORT_CYCLES(1),
-         .FIRST_IN_ROW(0),
-         .MAX_INT(6'b111_111),
-         .COMPUTE_CYCLES(1))
+         .FIRST_IN_ROW(0))
          PE_tb (.clk(clk),
           .rst(rst),
           .rst_memory(3'b000),

@@ -22,7 +22,9 @@ test: clean
 	./objnanci_sgt_l && \
 	./objnanci_sgt_r && \
 	./objnanci_sgt_u && \
-	./objnanci_sgt_d
+	./objnanci_sgt_d && \
+	iverilog test/mesh_tb.v nanci.v -o objnanci_mesh_4 && \
+	./objnanci_mesh_4
 
 run:
 	iverilog -Wall test/nanci_s_l_tb.v nanci.v -o objnanci_s_l && \

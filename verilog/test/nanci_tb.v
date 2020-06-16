@@ -9,9 +9,7 @@ module nanci_tb ();
          .I(0),
          .FILENAME("test/tb_data00.data"),
          .ADDR_WIDTH(3),
-         .SORT_CYCLES(1),
-         .FIRST_IN_ROW(0),
-         .COMPUTE_CYCLES(1))
+         .SORT_CYCLES(1))
          PE_tb (.clk(clk),
           .rst(rst),
           .rst_memory(0),

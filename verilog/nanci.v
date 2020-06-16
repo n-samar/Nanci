@@ -35,13 +35,14 @@ module application #(parameter N = 1024,
     output reg [ADDR_WIDTH+DATA_WIDTH-1:0] app_request,
     output 				   is_write,
     output [14-1:0] 			   compute_cycles);
-   
+
+   parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
    assign compute_cycles = 5;
   
    always @(posedge clk) begin
       if (runnable) begin
-         app_request[3:2] <= N-1-I;
-         app_request[1:0] <= I;
+         app_request[WIDTH-1:DATA_WIDTH] <= N-1-I;
+         app_request[DATA_WIDTH-1:0] <= I;
       end
    end
 endmodule
