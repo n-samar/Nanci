@@ -4,14 +4,14 @@ module mesh_04_tb ();
    reg clk;
    reg rst;
 
-   parameter ADDR_WIDTH = 2;
-   parameter DATA_WIDTH = 2;
+   parameter ADDR_WIDTH = 6;
+   parameter DATA_WIDTH = 6;
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
-   parameter N          = 4;
-   parameter SQRT_N     = 2;
-   parameter SORT_CYCLES = 4;
-   
-   wire [WIDTH-1:0] nanci_result [N-1:0];      
+   parameter N          = 16;
+   parameter SQRT_N     = 4;
+   parameter SORT_CYCLES = 21;
+  
+    wire [WIDTH-1:0] nanci_result [N-1:0];   
    mesh_db #(.N(N),
 	     .SQRT_N(SQRT_N),
 	     .ADDR_WIDTH(ADDR_WIDTH),
@@ -34,15 +34,15 @@ module mesh_04_tb ();
 	   $write("%c[1;31m",27);	   
            $display("[ERROR: %m] bad output for PE[0]: %b !== 4'b0011", nanci_result[0]);
 	   $write("%c[0m",27);	   	   
-        end else if (nanci_result[1] !== 4'b0110) begin
+        end else if (nanci_result[SQRT_N-1] !== 4'b0110) begin
 	   $write("%c[1;31m",27);	   
            $display("[ERROR: %m] bad output for PE[1]: %b !== 4'b0110", nanci_result[1]);
 	   $write("%c[0m",27);	   	   	   
-	end else if (nanci_result[2] !== 4'b1001) begin
+	end else if (nanci_result[N-SQRT_N] !== 4'b1001) begin
 	   $write("%c[1;31m",27);	   
            $display("[ERROR: %m] bad output for PE[2]: %b !== 4'b1001", nanci_result[2]);
 	   $write("%c[0m",27);	   	   	   	   
-	end else if (nanci_result[3] !== 4'b1100) begin
+	end else if (nanci_result[N-1] !== 4'b1100) begin
 	   $write("%c[1;31m",27);	   
            $display("[ERROR: %m] bad output for PE[3]: %b !== 4'b1100", nanci_result[3]);
 	   $write("%c[0m",27);	   	   	   	   

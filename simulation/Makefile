@@ -2,6 +2,7 @@ flags = -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-op
 
 all:
 	g++ $(flags) -O3 -std=c++11 sort.cpp -pthread -O3 -o sort
+	g++ $(flags) -std=c++11 get_filename_string.cpp -o get_filename_string
 
 gdb:
 	g++ $(flags) -g -std=c++11 sort.cpp -pthread -o sort_gdb 
