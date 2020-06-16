@@ -24,7 +24,7 @@ static bool HUMAN = false;      // Generate human-readable output (use `-h')
 static bool PRINT_S = false;
 static bool DATA = false;       // Get data for readmemb
 struct inst {
-    bool is_CAS;
+    int bigger_index;
     unsigned long cycle;
     size_t src;
     size_t dst;
@@ -52,8 +52,11 @@ size_t snake_to_index(size_t i, size_t N, size_t M) {
 }
 
 size_t index_to_snake(size_t i, size_t N, size_t M) {
-    size_t snake = i/M + ((i/M)%2)?(M-1-(i%M)):(i%M);
-    return snake;
+  if ((i/M)&2) {
+    return M*(i/M) + M-1-(i%M);
+  } else {
+    return M*(i/M) + i%M;
+  }
 }
 
 // j == N specifies row
@@ -97,9 +100,20 @@ void copy_back_matrix(int *a, int *b, size_t a_j, size_t a_k, size_t a_height, s
                 size_t src_k = elem.src%width;
                 size_t dst_j = elem.dst/width;
                 size_t dst_k = elem.dst%width;
-                (*(inst_map_stack.end()[-2]))[cyc].push_back((struct inst) {elem.is_CAS, elem.cycle, 
-                                                                            (a_j+src_j)*a_width+src_k+a_k, 
-                                                                            (a_j+dst_j)*a_width+dst_k+a_k});
+	       
+		if (elem.bigger_index == -1) {
+		  (*(inst_map_stack.end()[-2]))[cyc].push_back((struct inst) {-1, elem.cycle, 
+										(a_j+src_j)*a_width+src_k+a_k, 
+										(a_j+dst_j)*a_width+dst_k+a_k});
+		} else {
+		  size_t bigger_j = ((size_t)elem.bigger_index)/width;
+		  size_t bigger_k = ((size_t)elem.bigger_index)%width;
+
+		  (*(inst_map_stack.end()[-2]))[cyc].push_back((struct inst) {(int)((a_j+bigger_j)*a_width+bigger_k+a_k), 
+										elem.cycle, 
+										(a_j+src_j)*a_width+src_k+a_k, 
+										(a_j+dst_j)*a_width+dst_k+a_k});		  
+		}
             }
         }
         inst_map_stack.pop_back();
@@ -128,9 +142,9 @@ void S(int *a, size_t i, size_t j, size_t cycle) {
     a[j] = temp;
     if (PRINT_S)
         cout << "  S: " << cycle << ", " << i << ", " << j << endl;
-    if (RECORD) {
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {false, cycle, i, j});
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {false, cycle, j, i});
+    if (RECORD || DATA) {
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {-1, cycle, i, j});
+        (*inst_map_stack.back())[cycle].push_back((struct inst) {-1, cycle, j, i});
     }
 }
 
@@ -144,11 +158,13 @@ void CAS(int *a, size_t i, size_t j, size_t cycle) {
     if (PRINT_S)
         cout << "CAS: " << cycle << ", " << i << ", " << j << endl;
     if (RECORD || DATA) {
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, i, j});
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, j, i});
+      (*inst_map_stack.back())[cycle].push_back((struct inst) {(int)i, cycle, i, j});
+      (*inst_map_stack.back())[cycle].push_back((struct inst) {(int)i, cycle, j, i});
     }
 }
 
+// j == N specifies row
+// k == M specifies column
 void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     assert(i<=j);
     size_t i_j = i/M;
@@ -164,7 +180,7 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     assert(M*j_j+j_k < M*N);
     size_t x = M*i_j+i_k;
     size_t y = M*j_j+j_k;
-    if(a[M*i_j+i_k] > a[M*j_j+j_k]) {
+    if(a[x] > a[y]) {
         int temp = a[x];
         a[x] = a[y];
         a[y] = temp;
@@ -172,8 +188,8 @@ void CAS_snake(int *a, size_t N, size_t M, size_t i, size_t j, size_t cycle) {
     if (PRINT_S)
         cout << "CAS: " << cycle << ", " << x << ", " << y << endl;
     if (RECORD || DATA) {
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, x, y});
-        (*inst_map_stack.back())[cycle].push_back((struct inst) {true, cycle, y, x});
+      (*inst_map_stack.back())[cycle].push_back((struct inst) {(int)x, cycle, x, y});
+      (*inst_map_stack.back())[cycle].push_back((struct inst) {(int)x, cycle, y, x});
     }
 }
 
@@ -201,13 +217,13 @@ size_t odd_even_transposition_sort(int *a, size_t n, size_t width, size_t cycle)
         return cycle;
     }
     if (n == 1 && width == 2) {
-        CAS_snake(a, 1, 2, 0, 1, cycle);
+      CAS_snake(a, 1, 2, 0, 1, cycle);   // Should be a CAS? Yes
         return cycle+1;
     }
 
     for (size_t count = 0; count < n*width; count++) {
         for(size_t i = (count+1)%2; i < n*width-1; i+=2) {
-            CAS_snake(a, n, width, i, i+1, cycle);
+	  CAS_snake(a, n, width, i, i+1, cycle);   // Should be a CAS? Iff n == 1, yes.
         }
         cycle++;
     }
@@ -233,10 +249,10 @@ size_t compare_swap(int *a, size_t n, size_t cycle) {
     if (PRINT_S)
         cout << "compare_swap: " << cycle << endl;
     if (n == 2) {
-        CAS_snake(a, 1, n, 0, 1, cycle);
+      CAS_snake(a, 1, n, 0, 1, cycle);   // This should just be a CAS? Yes
     } else {
-        for (size_t i = 1; i<n-1; i+=2)
-            CAS_snake(a, 1, n, i, i+1, cycle);
+        for (size_t i = 1; i<n-1; i+=2) 
+	  CAS_snake(a, 1, n, i, i+1, cycle);   // This should just be a CAS? Yes
     }
     cycle++;
     return cycle;
@@ -312,28 +328,27 @@ void init_rand_sorted_step(int *a, size_t n, size_t step) {
 
 
 void print_inst(struct inst elem) {
-    cout << elem.is_CAS << ", "
+    cout << elem.bigger_index << ", "
          << elem.cycle << ", "
          << elem.src << ", "
          << elem.dst << endl;
 }
 
 void get_actions(size_t i) {
-    cout << "is_CAS, cycle, src, dst" << endl;
+    cout << "bigger_index, cycle, src, dst" << endl;
     for (auto & elem : (*(inst_map_stack.back()))[i])
         print_inst(elem);
 }
 
 void print_all(size_t cycles, size_t N_PE) {
     map<size_t, vector<struct inst> > chrono_insts = *(inst_map_stack.back());
-    size_t *data = NULL;
+    char *data = NULL;
     if (DATA)
-        data = new size_t[cycles*N_PE];
+        data = new char[4*cycles*N_PE];
     if (RECORD) {
         cout << "cycle num, ";
-        
         for (size_t i = 0; i < N_PE; ++i) {
-            cout << std::setfill(' ') << std::setw(HUMAN?9:5)  << i;
+            cout << std::setfill(' ') << std::setw(HUMAN?9:4)  << i;
             if (i+1 < N_PE)
                 cout << ", ";
         }
@@ -351,19 +366,20 @@ void print_all(size_t cycles, size_t N_PE) {
                 size_t dst = chrono_insts[i].back().dst;
                 string inst;
                 if (HUMAN) inst = "s  ";
-                else inst = "11_";
-                if (DATA) data[i*N_PE + j] = 0b1100;
-                if (chrono_insts[i].back().is_CAS) {
-                    size_t snake_dst = index_to_snake(dst, N, N);
-                    size_t snake_src = index_to_snake(j, N, N);
-                    if (snake_src > snake_dst) {
+                else inst = "11";
+                if (DATA) data[4*(i*N_PE + j)+3] = '1';
+                if (DATA) data[4*(i*N_PE + j)+2] = '1';		
+                if (chrono_insts[i].back().bigger_index != -1) {
+		  if (j != (size_t) chrono_insts[i].back().bigger_index) {
                         if (HUMAN) inst = "slt";
-                        else inst = "01_";
-                        if (DATA) data[i*N_PE + j] = 0b1100;
+                        else inst = "01";
+			if (DATA) data[4*(i*N_PE + j)+3] = '0';
+			if (DATA) data[4*(i*N_PE + j)+2] = '1';						
                     } else { 
                         if (HUMAN) inst = "sgt";
-                        else inst = "10_";
-                        if (DATA) data[i*N_PE + j] = 0b1100;
+                        else inst = "10";
+			if (DATA) data[4*(i*N_PE + j)+3] = '1';
+			if (DATA) data[4*(i*N_PE + j)+2] = '0';	
                     }
                 }
                 string dir;
@@ -372,29 +388,38 @@ void print_all(size_t cycles, size_t N_PE) {
                 if (dst+1 == j) {
                     if (HUMAN) dir = "  left";
                     else dir = "00";
-                    if (DATA) data[i*N_PE + j] += 0b00;
+                    if (DATA) data[4*(i*N_PE + j)+1] = '0';		    
+                    if (DATA) data[4*(i*N_PE + j)+0] = '0';
                 } else if (dst-1 == j) {
                     if (HUMAN) dir = " right";
                     else dir = "01";
-                    if (DATA) data[i*N_PE + j] += 0b01;
+                    if (DATA) data[4*(i*N_PE + j)+1] = '0';		    
+                    if (DATA) data[4*(i*N_PE + j)+0] = '1';
                 } else if (dst+N == j) {
                     if (HUMAN) dir = "    up";
                     else dir = "10";
-                    if (DATA) data[i*N_PE + j] += 0b10;
+                    if (DATA) data[4*(i*N_PE + j)+1] = '1';		    
+                    if (DATA) data[4*(i*N_PE + j)+0] = '0';		    
                 } else if (dst-N == j) {
                     if (HUMAN) dir = "  down";
                     else dir = "11";
-                    if (DATA) data[i*N_PE + j] += 0b11;
+                    if (DATA) data[4*(i*N_PE + j)+1] = '1';		    
+                    if (DATA) data[4*(i*N_PE + j)+0] = '1';		    
                 }
                 if (RECORD)
                     cout << inst << dir;
-                while (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) chrono_insts[i].pop_back();
+                while (!chrono_insts[i].empty() && chrono_insts[i].back().src == j) chrono_insts[i].pop_back();	
             } else {
                 if (RECORD) {
                     if (HUMAN) cout << "      nop";
-                    else cout << "00_00";
+                    else cout << "0000";
                 }
-                if (DATA) data[i*N_PE + j] = 0b0000;
+                if (DATA) {
+		  data[4*(i*N_PE + j)+3] = '0';
+		  data[4*(i*N_PE + j)+2] = '0';
+		  data[4*(i*N_PE + j)+1] = '0';
+		  data[4*(i*N_PE + j)+0] = '0';		  
+		}
             }
             if (j+1 < N_PE && RECORD)
                 cout << ", ";
@@ -418,7 +443,10 @@ void print_all(size_t cycles, size_t N_PE) {
             ofstream outputFile;
             outputFile.open(filename);
             for (size_t i = 0; i < cycles; i++) {
-                outputFile << std::bitset<4>(data[i*N_PE + j]) << endl;
+	      outputFile << data[4*(i*N_PE + j)+3]
+			 << data[4*(i*N_PE + j)+2]
+			 << data[4*(i*N_PE + j)+1]
+			 << data[4*(i*N_PE + j)+0] << endl;
             }
             outputFile.close();
         }

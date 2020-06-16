@@ -1,11 +1,11 @@
 `timescale 100 ps/10 ps
 
-module mesh_04_tb ();
+module mesh_16_tb ();
    reg clk;
    reg rst;
 
-   parameter ADDR_WIDTH = 6;
-   parameter DATA_WIDTH = 6;
+   parameter ADDR_WIDTH = 4;
+   parameter DATA_WIDTH = 4;
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
    parameter N          = 16;
    parameter SQRT_N     = 4;
@@ -25,33 +25,26 @@ module mesh_04_tb ();
         #5 clk = ~clk;
     end
 
+   integer i, j;   
     initial begin
         clk = 1'b0;
         rst = 1'b1;
         #20 rst = 1'b0;
-       #1000;
-        if (nanci_result[0] !== 4'b0011) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[0]: %b !== 4'b0011", nanci_result[0]);
-	   $write("%c[0m",27);	   	   
-        end else if (nanci_result[SQRT_N-1] !== 4'b0110) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[1]: %b !== 4'b0110", nanci_result[1]);
-	   $write("%c[0m",27);	   	   	   
-	end else if (nanci_result[N-SQRT_N] !== 4'b1001) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[2]: %b !== 4'b1001", nanci_result[2]);
-	   $write("%c[0m",27);	   	   	   	   
-	end else if (nanci_result[N-1] !== 4'b1100) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[3]: %b !== 4'b1100", nanci_result[3]);
-	   $write("%c[0m",27);	   	   	   	   
-	end else begin
-	   $write("%c[1;34m",27);	   	   	   
-	   $display("[OK: %m]");
-	   $write("%c[0m",27);	   
-	end
-       $finish;       
+       #2000;
+       for (i = 0; i < N; i=i+1) begin
+	  j = N-1-i;
+	  
+          if (nanci_result[i] !== {i[ADDR_WIDTH-1:0], j[ADDR_WIDTH-1:0]}) begin
+	     $write("%c[1;31m",27);	   
+             $display("[ERROR: %m] bad output for PE[%d]: %b !== %b", i, nanci_result[i], {i[ADDR_WIDTH-1:0], j[ADDR_WIDTH-1:0]});
+	     $write("%c[0m",27);	   	   
+	  end else begin
+	     $write("%c[1;34m",27);	   	   	   
+	     $display("[OK: %m]");
+	     $write("%c[0m",27);	   
+	  end
+       end // for (i = 0; i < N; i=i+1)
+       $finish;              
     end
 
     // GTKwave dumpfile setup

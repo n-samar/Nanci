@@ -129,15 +129,18 @@ module nanci #(parameter N = 1024,                            // Total number of
    parameter MAX_INT = {WIDTH{1'b1}};
    
    // States
-   parameter COMPUTE             = 4'b0000;
-   parameter PUT_ADDR            = 4'b0001;
-   parameter PUSH_ADDR_SORT      = 4'b0010;
-   parameter PUSH_ADDR_ROW_ALIGN = 4'b0011;
-   parameter PUSH_ADDR_COL_ALIGN = 4'b0100;
-   parameter LOAD_DATA           = 4'b0101;
-   parameter GET_DATA_SORT       = 4'b0110;      
-   parameter GET_DATA_ROW_ALIGN  = 4'b0111;     
-   parameter GET_DATA_COL_ALIGN  = 4'b1000;       
+   parameter COMPUTE                = 4'b0000;
+   parameter PUT_ADDR               = 4'b0001;
+   parameter PUSH_ADDR_SORT         = 4'b0010;
+   parameter PUSH_ADDR_TO_ROW_MAJOR = 4'b0011;   
+   parameter PUSH_ADDR_ROW_ALIGN    = 4'b0100;
+   parameter PUSH_ADDR_COL_ALIGN    = 4'b0101;
+   parameter LOAD_DATA              = 4'b0110;
+   parameter GET_DATA_SORT          = 4'b0111;
+   parameter GET_DATA_TO_ROW_MAJOR  = 4'b1000;   
+   parameter GET_DATA_ROW_ALIGN     = 4'b1001;     
+   parameter GET_DATA_COL_ALIGN     = 4'b1010;
+
 
    // Instructions
    parameter s_l  = 4'b11_00;
@@ -179,16 +182,18 @@ module nanci #(parameter N = 1024,                            // Total number of
    // TODO: implement writes via is_write
 
    // Used for debugging
-   wire 			       s_COMPUTE = (state == COMPUTE);
-   wire 			       s_PUT_ADDR = (state == PUT_ADDR);
-   wire 			       s_PUSH_ADDR_SORT = (state == PUSH_ADDR_SORT);
-   wire 			       s_PUSH_ADDR_COL_ALIGN = (state == PUSH_ADDR_COL_ALIGN);
-   wire 			       s_PUSH_ADDR_ROW_ALIGN = (state == PUSH_ADDR_ROW_ALIGN);
-   wire 			       s_LOAD_DATA = (state == LOAD_DATA);
-   wire 			       s_GET_DATA_SORT = (state == GET_DATA_SORT);
-   wire 			       s_GET_DATA_ROW_ALIGN = (state == GET_DATA_ROW_ALIGN);
-   wire 			       s_GET_DATA_COL_ALIGN = (state == GET_DATA_COL_ALIGN);
-   wire [3:0] 			       s_INSTRUCTION = inst_ROM[clk_counter] & {4{(s_PUSH_ADDR_SORT | s_GET_DATA_SORT)}};
+   wire 			       s_01_COMPUTE = (state == COMPUTE);
+   wire 			       s_02_PUT_ADDR = (state == PUT_ADDR);
+   wire 			       s_03_PUSH_ADDR_SORT = (state == PUSH_ADDR_SORT);
+   wire 			       s_04_PUSH_ADDR_TO_ROW_MAJOR = (state == PUSH_ADDR_TO_ROW_MAJOR);
+   wire 			       s_05_PUSH_ADDR_ROW_ALIGN = (state == PUSH_ADDR_ROW_ALIGN);
+   wire 			       s_06_PUSH_ADDR_COL_ALIGN = (state == PUSH_ADDR_COL_ALIGN);   
+   wire 			       s_07_LOAD_DATA = (state == LOAD_DATA);
+   wire 			       s_08_GET_DATA_SORT = (state == GET_DATA_SORT);
+   wire 			       s_09_GET_DATA_TO_ROW_MAJOR = (state == GET_DATA_TO_ROW_MAJOR);
+   wire 			       s_10_GET_DATA_ROW_ALIGN = (state == GET_DATA_ROW_ALIGN);
+   wire 			       s_11_GET_DATA_COL_ALIGN = (state == GET_DATA_COL_ALIGN);
+   wire [3:0] 			       s_12_INSTRUCTION = inst_ROM[clk_counter] & {14{(s_03_PUSH_ADDR_SORT | s_08_GET_DATA_SORT)}};
 
 
    reg [WIDTH-1:0] 		       comm_reg;    // Extra register needed for COL_ALIGN
@@ -214,9 +219,14 @@ module nanci #(parameter N = 1024,                            // Total number of
         end
         PUSH_ADDR_SORT: begin
            if (clk_counter == SORT_CYCLES-1) begin
-              next_state = PUSH_ADDR_ROW_ALIGN;
+              next_state = PUSH_ADDR_TO_ROW_MAJOR;
            end
         end
+	PUSH_ADDR_TO_ROW_MAJOR: begin
+           if (clk_counter == SQRT_N) begin
+              next_state = PUSH_ADDR_ROW_ALIGN;
+           end	   
+	end
         PUSH_ADDR_ROW_ALIGN: begin
            if (clk_counter == SQRT_N) begin
               next_state = PUSH_ADDR_COL_ALIGN;
@@ -232,9 +242,14 @@ module nanci #(parameter N = 1024,                            // Total number of
         end
         GET_DATA_SORT: begin
            if (clk_counter == SORT_CYCLES-1) begin
-              next_state = GET_DATA_ROW_ALIGN;
+              next_state = GET_DATA_TO_ROW_MAJOR;
            end
         end
+	GET_DATA_TO_ROW_MAJOR: begin
+	   if (clk_counter == SQRT_N) begin
+	      next_state = GET_DATA_ROW_ALIGN;
+	   end
+	end
         GET_DATA_ROW_ALIGN: begin
            if (clk_counter == SQRT_N) begin
               next_state = GET_DATA_COL_ALIGN;
@@ -264,7 +279,13 @@ module nanci #(parameter N = 1024,                            // Total number of
          comm_reg[WIDTH-1:DATA_WIDTH] <= app_request[WIDTH-1:DATA_WIDTH];
          comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I[ADDR_WIDTH-1:0];
       end else if (state == LOAD_DATA) begin
-         comm_reg <= {comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
+	 if (nanci_result[WIDTH-1 -: ADDR_WIDTH] == I) begin
+	    // Somebody requested a read from our memory
+            comm_reg <= {nanci_result[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
+	 end else begin
+	    // Nobody requested a read from our memory
+	    comm_reg <= MAX_INT;
+	 end
       end else if (state == PUSH_ADDR_SORT || state == GET_DATA_SORT) begin
          case(inst_ROM[clk_counter]) 
            s_l: begin
@@ -315,6 +336,26 @@ module nanci #(parameter N = 1024,                            // Total number of
               comm_reg <= comm_reg;
            end
          endcase
+      end else if (state == PUSH_ADDR_TO_ROW_MAJOR || state == GET_DATA_TO_ROW_MAJOR) begin
+	 if (clk_counter[0] == I[0]) begin
+	    // swap right
+	    if (I != FIRST_IN_ROW + SQRT_N - 1) begin
+	       if (comm_reg[WIDTH-1:DATA_WIDTH] > i_PE_r[WIDTH-1:DATA_WIDTH]) begin
+		  comm_reg <= i_PE_r;
+	       end else begin
+		  comm_reg <= comm_reg;
+	       end
+	    end
+	 end else begin
+	    // swap left
+	    if (I != FIRST_IN_ROW) begin
+	       if (comm_reg[WIDTH-1:DATA_WIDTH] < i_PE_l[WIDTH-1:DATA_WIDTH]) begin
+		  comm_reg <= i_PE_l;
+	       end else begin
+		  comm_reg <= comm_reg;
+	       end
+	    end
+	 end
       end else if (state == PUSH_ADDR_ROW_ALIGN || state == GET_DATA_ROW_ALIGN) begin
          if (comm_reg[WIDTH-1:DATA_WIDTH] == MAX_INT) begin
             // comm_reg holds no value, should look to see if PE_u has something for it
@@ -341,7 +382,7 @@ module nanci #(parameter N = 1024,                            // Total number of
          if (comm_reg[WIDTH-1:DATA_WIDTH] == I) begin
             // comm_reg holds the right value, copy into nanci_result
             nanci_result <= comm_reg;
-            // Discard comm_reg
+            // Discard comm_reg's address pins
             comm_reg[WIDTH-1:DATA_WIDTH] <= MAX_INT;
          end else if (comm_reg[WIDTH-1:DATA_WIDTH] == MAX_INT) begin
             // comm_reg holds no value
