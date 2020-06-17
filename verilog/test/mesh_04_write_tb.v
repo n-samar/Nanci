@@ -1,6 +1,6 @@
 `timescale 100 ps/10 ps
 
-module mesh_04_tb ();
+module mesh_04_write_tb ();
    reg clk;
    reg rst;
 
@@ -10,7 +10,8 @@ module mesh_04_tb ();
    parameter N          = 4;
    parameter SQRT_N     = 2;
    parameter SORT_CYCLES = 4;
-   
+
+   wire [DATA_WIDTH-1:0] mem   [N-1:0];
    wire [WIDTH:0] nanci_result [N-1:0];      
    mesh_db #(.N(N),
 	     .SQRT_N(SQRT_N),
@@ -19,7 +20,8 @@ module mesh_04_tb ();
 	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
 	    .rst(rst),
-	    .nanci_result(nanci_result));
+	    .nanci_result(nanci_result),
+	    .mem(mem));
 
     always begin
         #5 clk = ~clk;
@@ -30,21 +32,21 @@ module mesh_04_tb ();
         rst = 1'b1;
         #20 rst = 1'b0;
        #1000;
-        if (nanci_result[0] !== 5'b00011) begin
+        if (mem[0] !== 2'b11) begin
 	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[0]: %b !== 4'b0011", nanci_result[0]);
+           $display("[ERROR: %m] bad output for mem[0]: %b !== 11", mem[0]);
 	   $write("%c[0m",27);	   	   
-        end else if (nanci_result[1] !== 5'b00110) begin
+        end else if (mem[1] !== 2'b11) begin
 	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[1]: %b !== 4'b0110", nanci_result[1]);
+           $display("[ERROR: %m] bad output for mem[1]: %b !== 11", mem[1]);
 	   $write("%c[0m",27);	   	   	   
-	end else if (nanci_result[2] !== 5'b01001) begin
+	end else if (mem[2] !== 2'b11) begin
 	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[2]: %b !== 4'b1001", nanci_result[2]);
+           $display("[ERROR: %m] bad output for mem[2]: %b !== 11", mem[2]);
 	   $write("%c[0m",27);	   	   	   	   
-	end else if (nanci_result[3] !== 5'b01100) begin
+	end else if (mem[3] !== 5'b11) begin
 	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for PE[3]: %b !== 4'b1100", nanci_result[3]);
+           $display("[ERROR: %m] bad output for mem[3]: %b !== 11", mem[3]);
 	   $write("%c[0m",27);	   	   	   	   
 	end else begin
 	   $write("%c[1;34m",27);	   	   	   
@@ -58,6 +60,6 @@ module mesh_04_tb ();
    initial
     begin
         $dumpfile("mesh.vcd");
-        $dumpvars(0,mesh_tb);
+        $dumpvars(0,mesh_04_write_tb);
     end
 endmodule

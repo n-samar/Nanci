@@ -23,29 +23,6 @@ module counter #(parameter ADDR_WIDTH = 16)
    end
 endmodule
 
-// User application module
-module application #(parameter N = 1024,
-                     parameter I = 0,
-                     parameter DATA_WIDTH = 10,
-                     parameter ADDR_WIDTH = 10) 
-   (input clk,
-    input 				   rst,
-    input 				   runnable,
-    input [ADDR_WIDTH+DATA_WIDTH-1:0] 	   nanci_result,
-    output reg [ADDR_WIDTH+DATA_WIDTH:0] app_request,
-    output 				   is_write,
-    output [14-1:0] 			   compute_cycles);
-
-   parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
-   assign compute_cycles = 5;
-  
-   always @(posedge clk) begin
-      if (runnable) begin
-         app_request[WIDTH-1:DATA_WIDTH] <= N-1-I;
-         app_request[DATA_WIDTH-1:0] <= I;
-      end
-   end
-endmodule
 
 module PE #(parameter N = 1024,
 	    parameter SQRT_N = 32,
@@ -56,19 +33,21 @@ module PE #(parameter N = 1024,
 	    parameter SORT_CYCLES = 222,
 	    parameter FIRST_IN_ROW = 0)
    (input clk,
-    input rst,
+    input 		   rst,
     input [DATA_WIDTH-1:0] rst_memory,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_l,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_r,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_u,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_d,
-    output [ADDR_WIDTH+DATA_WIDTH:0] o_PE,
-    output [ADDR_WIDTH+DATA_WIDTH-1:0] nanci_result);   // Included as output only for debugging,
-                                                        // Should be local to PE otherwise
+    input [WIDTH:0] 	   i_PE_l,
+    input [WIDTH:0] 	   i_PE_r,
+    input [WIDTH:0] 	   i_PE_u,
+    input [WIDTH:0] 	   i_PE_d,
+    output [WIDTH:0] 	   o_PE,
+    output [DATA_WIDTH-1:0] mem,            // Included as output only for debugging,
+    output [WIDTH:0] 	   nanci_result);   // Included as output only for debugging,
+
+   parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
    
-   wire [ADDR_WIDTH+DATA_WIDTH-1:0]    nanci_result;
-   wire [ADDR_WIDTH+DATA_WIDTH:0]      app_request;   
-   wire [14-1:0] 		       compute_cycles;
+   wire [WIDTH:0]    nanci_result;
+   wire [WIDTH:0]    app_request;   
+   wire [14-1:0]     compute_cycles;
      
    application #(.N(N),
 		 .I(I),
@@ -79,7 +58,6 @@ module PE #(parameter N = 1024,
 	     .runnable(runnable),
 	     .nanci_result(nanci_result),
 	     .app_request(app_request),
-	     .is_write(is_write),
 	     .compute_cycles(compute_cycles));
    
    nanci #(.N(N),
@@ -101,7 +79,8 @@ module PE #(parameter N = 1024,
 	       .nanci_result(nanci_result),
 	       .app_request(app_request),
 	       .runnable(runnable),
-	       .o_PE(o_PE));
+	       .o_PE(o_PE),
+	       .mem(mem));
 endmodule
 
 module nanci #(parameter N = 1024,                            // Total number of PEs
@@ -113,17 +92,20 @@ module nanci #(parameter N = 1024,                            // Total number of
 	       parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
 	       parameter FIRST_IN_ROW = 0)                    // Index of first PE in this PE's 
    (input                   clk,
-    input 			       rst,
-    input [DATA_WIDTH-1:0] 	       rst_memory, // Value of memory register after reset
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_l,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_r,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_u,
-    input [ADDR_WIDTH+DATA_WIDTH:0]  i_PE_d, 
-    input [14-1:0] 		       compute_cycles,
-    input [WIDTH:0] 		       app_request,
-    output reg [WIDTH-1:0] 	       nanci_result,
-    output 			       runnable,
-    output [ADDR_WIDTH+DATA_WIDTH:0] o_PE);
+    input 		   rst,
+    input [DATA_WIDTH-1:0] rst_memory, // Value of memory register after reset
+    input [WIDTH:0] 	   i_PE_l,
+    input [WIDTH:0] 	   i_PE_r,
+    input [WIDTH:0] 	   i_PE_u,
+    input [WIDTH:0] 	   i_PE_d, 
+    input [14-1:0] 	   compute_cycles,
+    input [WIDTH:0] 	   app_request,
+    output reg [WIDTH:0]   nanci_result,
+    output 		   runnable,
+    output [WIDTH:0] 	   o_PE,
+    output [DATA_WIDTH-1:0] mem);     // Included as output only for debugging
+
+   assign mem = memory;
 
    parameter WIDTH  = ADDR_WIDTH + DATA_WIDTH;
    parameter MAX_INT = {(WIDTH+1){1'b1}};
@@ -173,8 +155,6 @@ module nanci #(parameter N = 1024,                            // Total number of
 
 
    assert_always assert_data_width_geq_addr_width (clk, (DATA_WIDTH >= ADDR_WIDTH));
-
-   // TODO: implement writes via is_write
 
    // Used for debugging
    wire 			       s_01_COMPUTE = (state == COMPUTE);
@@ -270,13 +250,24 @@ module nanci #(parameter N = 1024,                            // Total number of
    // Addressing logic
    always @(posedge clk) begin
       if (state == PUT_ADDR) begin
-         // Load destination and source addresses
-         comm_reg[WIDTH:DATA_WIDTH] <= app_request[WIDTH:DATA_WIDTH];
-         comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I[ADDR_WIDTH-1:0];
+	 if (app_request[WIDTH] == 1'b0) begin
+            // If read, load destination and source addresses
+            comm_reg[WIDTH:DATA_WIDTH] <= app_request[WIDTH:DATA_WIDTH];
+            comm_reg[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH] <= I[ADDR_WIDTH-1:0];
+	 end else begin
+	    // If write, just read app_request; it should already have the data in it
+	    comm_reg <= app_request;
+	 end
       end else if (state == LOAD_DATA) begin
 	 if (nanci_result[WIDTH-1 -: ADDR_WIDTH] == I) begin
-	    // Somebody requested a read from our memory
-            comm_reg <= {nanci_result[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
+	    if (nanci_result[WIDTH] == 1'b0) begin
+	       // Somebody requested a read from our memory
+               comm_reg <= {1'b0, nanci_result[DATA_WIDTH-1:DATA_WIDTH-ADDR_WIDTH], memory};
+	    end else begin
+	       // Somebody wants to write to our memory
+	       memory <= nanci_result[DATA_WIDTH-1:0];
+	       comm_reg <= MAX_INT;
+	    end
 	 end else begin
 	    // Nobody requested a read from our memory
 	    comm_reg <= MAX_INT;
@@ -421,9 +412,10 @@ module mesh_db #(parameter N = 4,                            // Total number of 
 		 parameter DATA_WIDTH = 4,                     // Width of memory register in each PE
 		 parameter SORT_CYCLES = 4)                    // Number of cycles to run sort
    (input clk,
-    input rst,
-    output [ADDR_WIDTH+DATA_WIDTH:0] PE [N-1:0],              // Included only for debugging, should be local to module
-    output [ADDR_WIDTH+DATA_WIDTH-1:0] nanci_result [N-1:0]);   // Included only for debugging, should be local to module
+    input 		    rst,
+    output [WIDTH:0] 	    PE [N-1:0],              // Included in output only for debugging
+    output [DATA_WIDTH-1:0] mem [N-1:0],             // Included in output only for debugging
+    output [WIDTH:0] 	    nanci_result [N-1:0]);   // Included in output only for debugging
    
    parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
    parameter MAX_INT = {(WIDTH+1){1'b1}};
@@ -454,7 +446,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(MAX_INT),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i == N-1) begin
             // bottom-right PE
             PE #(.N(N),
@@ -473,7 +466,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(MAX_INT),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i == N-SQRT_N) begin 
             // bottom-left PE
             PE #(.N(N),
@@ -492,7 +486,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(MAX_INT),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i == SQRT_N-1) begin
             // top-right PE
             PE #(.N(N),
@@ -511,7 +506,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(MAX_INT),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i < SQRT_N) begin
             // top row
             PE #(.N(N),
@@ -530,7 +526,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(MAX_INT),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i >= N-SQRT_N) begin
             // bottom row
             PE #(.N(N),
@@ -549,7 +546,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(MAX_INT),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i%SQRT_N == 0) begin
             // left column
             PE #(.N(N),
@@ -568,7 +566,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else if (i%SQRT_N == SQRT_N-1) begin
             // right column
             PE #(.N(N),
@@ -587,7 +586,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end else begin
             // in middle of mesh
             PE #(.N(N),
@@ -606,7 +606,8 @@ module mesh_db #(parameter N = 4,                            // Total number of 
                 .i_PE_u(PE[i-SQRT_N]),
                 .i_PE_d(PE[i+SQRT_N]),
                 .o_PE(PE[i]),
-		.nanci_result(nanci_result[i]));
+		.nanci_result(nanci_result[i]),
+		.mem(mem[i]));
          end
       end
    endgenerate
