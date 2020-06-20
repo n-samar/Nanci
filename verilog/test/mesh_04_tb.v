@@ -12,7 +12,7 @@ module mesh_04_tb ();
    parameter SORT_CYCLES = 4;
    
    wire [WIDTH:0] nanci_result [N-1:0];
-   wire [N-1:0] correct_output;   
+   wire [N-1:0] correct_output;
    integer 	  i, j;       
    genvar 	  k;
 
