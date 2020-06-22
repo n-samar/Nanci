@@ -28,8 +28,7 @@ module PE #(parameter N = 1024,
 	    parameter I = 0,
 	    parameter FILENAME = "../data/0004/0000.data",
 	    parameter DATA_WIDTH = 32,
-	    parameter SORT_CYCLES = 222,
-	    parameter FIRST_IN_ROW = 0)
+	    parameter SORT_CYCLES = 222)
    (input clk,
     input 		   rst,
     input [DATA_WIDTH-1:0] rst_memory,
@@ -53,7 +52,8 @@ module PE #(parameter N = 1024,
 		      (N == 1)    ? 1  : 0;
    
    parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
-
+   parameter FIRST_IN_ROW = I - I%SQRT_N;
+			    
    wire [WIDTH:0] 		       app_request;   
    wire [WIDTH:0] 		       nanci_result;
    wire [14-1:0] 		       compute_cycles;
@@ -73,8 +73,7 @@ module PE #(parameter N = 1024,
 	   .I(I),
 	   .FILENAME(FILENAME),
 	   .DATA_WIDTH(DATA_WIDTH),
-	   .SORT_CYCLES(SORT_CYCLES),
-	   .FIRST_IN_ROW(FIRST_IN_ROW)) 
+	   .SORT_CYCLES(SORT_CYCLES)) 
    nanci_init (.clk(clk),
 	       .rst(rst),
 	       .rst_memory(rst_memory),
@@ -93,8 +92,7 @@ module nanci #(parameter N = 1024,                            // Total number of
 	       parameter I = 0,                               // Index of this PE
 	       parameter FILENAME = "../data/0004/0000.data", // Filename for instructions
 	       parameter DATA_WIDTH = 32,                     // Width of memory register in each PE
-	       parameter SORT_CYCLES = 222,                   // Number of cycles to run sort
-	       parameter FIRST_IN_ROW = 0)                    // Index of first PE in this PE's 
+	       parameter SORT_CYCLES = 222)                   // Number of cycles to run sort
    (input                   clk,
     input 		   rst,
     input [DATA_WIDTH-1:0] rst_memory, // Value of memory register after reset
@@ -120,7 +118,7 @@ module nanci #(parameter N = 1024,                            // Total number of
 		      (N == 16)   ? 4  :
 		      (N == 4)    ? 2  :
 		      (N == 1)    ? 1  : 0;
-   
+   parameter FIRST_IN_ROW = I - I%SQRT_N;
    parameter MAX_INT = {(WIDTH+1){1'b1}};
    
    // States
@@ -454,8 +452,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -470,8 +467,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -486,8 +482,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -502,8 +497,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -518,8 +512,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -534,8 +527,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -550,8 +542,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -566,8 +557,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
@@ -582,8 +572,7 @@ module mesh #(parameter N = 4,                            // Total number of PEs
                  .I(i),
                  .FILENAME(X[(i+1)*22*8+FILENAME_OFFSET-1 -: 22*8]),
                  .DATA_WIDTH(DATA_WIDTH),
-                 .SORT_CYCLES(SORT_CYCLES),
-                 .FIRST_IN_ROW(i-i%SQRT_N))
+                 .SORT_CYCLES(SORT_CYCLES))
             PE (.clk(clk),
                 .rst(rst),
                 .rst_memory(i[DATA_WIDTH-1:0]),
