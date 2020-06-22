@@ -5,7 +5,6 @@ module nanci_tb ();
     reg rst;
 
     PE #(.N(1),
-         .SQRT_N(1),
          .I(0),
          .FILENAME("test/tb_data00.data"),
          .ADDR_WIDTH(3),

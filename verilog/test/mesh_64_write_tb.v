@@ -8,7 +8,6 @@ module mesh_64_write_tb ();
    parameter DATA_WIDTH = 6;
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
    parameter N          = 64;
-   parameter SQRT_N     = 8;
    parameter SORT_CYCLES = 53;
 
    wire [DATA_WIDTH-1:0] mem   [N-1:0];
@@ -17,7 +16,6 @@ module mesh_64_write_tb ();
    genvar 	  k;
 
    mesh #(.N(N),
-	     .SQRT_N(SQRT_N),
 	     .ADDR_WIDTH(ADDR_WIDTH),
 	     .DATA_WIDTH(DATA_WIDTH),
 	     .SORT_CYCLES(SORT_CYCLES))

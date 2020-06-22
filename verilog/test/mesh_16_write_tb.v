@@ -4,11 +4,10 @@ module mesh_16_write_tb ();
    reg clk;
    reg rst;
 
-   parameter ADDR_WIDTH = 4;
-   parameter DATA_WIDTH = 4;
+   parameter DATA_WIDTH = 32;
+   parameter ADDR_WIDTH = 4;   
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
    parameter N          = 16;
-   parameter SQRT_N     = 4;
    parameter SORT_CYCLES = 21;
 
    wire [DATA_WIDTH-1:0] mem   [N-1:0];
@@ -17,9 +16,6 @@ module mesh_16_write_tb ();
    genvar 	  k;
 
    mesh #(.N(N),
-	     .SQRT_N(SQRT_N),
-	     .ADDR_WIDTH(ADDR_WIDTH),
-	     .DATA_WIDTH(DATA_WIDTH),
 	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
 	    .rst(rst));

@@ -7,10 +7,8 @@ module nanci_tb ();
    wire [5:0] o_PE;
    
     PE #(.N(1),
-         .SQRT_N(0),
          .I(0),
          .FILENAME("test/testdata/tb_data_s_d.data"),
-         .ADDR_WIDTH(3),
          .DATA_WIDTH(3),
          .SORT_CYCLES(1),
          .FIRST_IN_ROW(0))

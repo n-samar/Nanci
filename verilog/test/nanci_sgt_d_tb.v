@@ -10,7 +10,6 @@ module nanci_sgt_d_tb ();
    reg [5:0] i_PE_d;
 
     PE #(.N(1),
-         .SQRT_N(0),
          .I(5),
          .FILENAME("test/testdata/tb_data_sgt_d.data"),
          .ADDR_WIDTH(3),

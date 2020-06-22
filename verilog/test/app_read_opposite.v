@@ -1,8 +1,7 @@
 // User application module
 module application #(parameter N = 1024,
                      parameter I = 0,
-                     parameter DATA_WIDTH = 10,
-                     parameter ADDR_WIDTH = 10) 
+                     parameter DATA_WIDTH = 32) 
    (input clk,
     input 				   rst,
     input 				   runnable,
@@ -10,7 +9,15 @@ module application #(parameter N = 1024,
     output reg [ADDR_WIDTH+DATA_WIDTH:0] app_request,
     output [14-1:0] 			   compute_cycles);
 
+
+   parameter ADDR_WIDTH = (N == 1024) ? 10 :
+			  (N == 256)  ? 8  :
+			  (N == 64)   ? 6  :
+			  (N == 16)   ? 4  :
+			  (N == 4)    ? 2  : 2;
+   
    parameter WIDTH = ADDR_WIDTH + DATA_WIDTH;
+   
    assign compute_cycles = 5;
   
    always @(posedge clk) begin
