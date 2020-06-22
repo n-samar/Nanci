@@ -17,7 +17,7 @@ module application #(parameter N = 1024,
       if (runnable) begin
 	 app_request[WIDTH] <= 1'b1;                         // specify write
          app_request[WIDTH-1:DATA_WIDTH] <= N-1-I;
-         app_request[DATA_WIDTH-1:0] <= I;                   // write itself
+         app_request[DATA_WIDTH-1:0] <= {DATA_WIDTH{1'b1}};  // write all 1's to destination
       end
    end
 endmodule

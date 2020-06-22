@@ -13,7 +13,6 @@ module mesh_04_tb ();
    
    wire [WIDTH:0] nanci_result [N-1:0];
    wire [N-1:0] correct_output;
-   integer 	  i, j;       
    genvar 	  k;
 
    

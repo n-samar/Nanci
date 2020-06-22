@@ -10,40 +10,45 @@ module mesh_64_tb ();
    parameter N          = 64;
    parameter SQRT_N     = 8;
    parameter SORT_CYCLES = 53;
-  
-    wire [WIDTH:0] nanci_result [N-1:0];   
-   mesh_db #(.N(N),
+
+   integer i, j;
+   genvar  k;
+   
+   wire [N-1:0] correct_output;   
+   wire [WIDTH:0] nanci_result [N-1:0];   
+   mesh #(.N(N),
 	     .SQRT_N(SQRT_N),
 	     .ADDR_WIDTH(ADDR_WIDTH),
 	     .DATA_WIDTH(DATA_WIDTH),
 	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
-	    .rst(rst),
-	    .nanci_result(nanci_result));
+	    .rst(rst));
 
     always begin
         #5 clk = ~clk;
     end
 
-   integer i, j;   
+   generate
+       for (k = 0; k < N; k=k+1) begin
+	  localparam el = N-1-k;
+	  assign correct_output[k] = (mesh_tb.GEN[k].GENIF.PE.app_init.nanci_result !== {1'b0, k[ADDR_WIDTH-1:0], el[ADDR_WIDTH-1:0]}) ? 1'b1 : 1'b0;
+       end
+   endgenerate
+   
     initial begin
         clk = 1'b0;
         rst = 1'b1;
         #20 rst = 1'b0;
        #2000;
-       for (i = 0; i < N; i=i+1) begin
-	  j = N-1-i;
-	  
-          if (nanci_result[i] !== {1'b0, i[ADDR_WIDTH-1:0], j[ADDR_WIDTH-1:0]}) begin
-	     $write("%c[1;31m",27);	   
-             $display("[ERROR: %m] bad output for PE[%d]: %b !== %b", i, nanci_result[i], {i[ADDR_WIDTH-1:0], j[ADDR_WIDTH-1:0]});
-	     $write("%c[0m",27);	   	   
-	  end else begin
-	     $write("%c[1;34m",27);	   	   	   
-	     $display("[OK: %m]");
-	     $write("%c[0m",27);	   
-	  end
-       end // for (i = 0; i < N; i=i+1)
+       if (correct_output !== {N{1'b0}}) begin
+	  $write("%c[1;31m",27);	   
+          $display("[ERROR: %m] bad output: %b", correct_output);
+	  $write("%c[0m",27);	   	   
+       end else begin
+	  $write("%c[1;34m",27);	   	   	   
+	  $display("[OK: %m]");
+	  $write("%c[0m",27);	   
+       end
        $finish;              
     end
 
@@ -51,6 +56,6 @@ module mesh_64_tb ();
    initial
     begin
         $dumpfile("mesh.vcd");
-        $dumpvars(0,mesh_64_tb);
+        $dumpvars(0,mesh_tb);
     end
 endmodule

@@ -12,54 +12,58 @@ module mesh_04_write_tb ();
    parameter SORT_CYCLES = 4;
 
    wire [DATA_WIDTH-1:0] mem   [N-1:0];
-   wire [WIDTH:0] nanci_result [N-1:0];      
-   mesh_db #(.N(N),
+   wire [N-1:0] correct_output;
+   
+   genvar 	  k;
+  
+   mesh #(.N(N),
 	     .SQRT_N(SQRT_N),
 	     .ADDR_WIDTH(ADDR_WIDTH),
 	     .DATA_WIDTH(DATA_WIDTH),
 	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
-	    .rst(rst),
-	    .nanci_result(nanci_result),
-	    .mem(mem));
+	    .rst(rst));
 
     always begin
         #5 clk = ~clk;
     end
 
+   
+   generate
+       for (k = 0; k < N; k=k+1) begin
+	  localparam el = N-1-k;
+	  assign correct_output[k] = (mesh_tb.GEN[k].GENIF.PE.nanci_init.memory !== el[DATA_WIDTH-1:0]);
+	  assign mem[k] = mesh_tb.GEN[k].GENIF.PE.nanci_init.memory;
+       end
+   endgenerate
+   
     initial begin
         clk = 1'b0;
         rst = 1'b1;
         #20 rst = 1'b0;
+
        #1000;
-        if (mem[0] !== 2'b11) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for mem[0]: %b !== 11", mem[0]);
-	   $write("%c[0m",27);	   	   
-        end else if (mem[1] !== 2'b11) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for mem[1]: %b !== 11", mem[1]);
-	   $write("%c[0m",27);	   	   	   
-	end else if (mem[2] !== 2'b11) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for mem[2]: %b !== 11", mem[2]);
-	   $write("%c[0m",27);	   	   	   	   
-	end else if (mem[3] !== 5'b11) begin
-	   $write("%c[1;31m",27);	   
-           $display("[ERROR: %m] bad output for mem[3]: %b !== 11", mem[3]);
-	   $write("%c[0m",27);	   	   	   	   
-	end else begin
-	   $write("%c[1;34m",27);	   	   	   
-	   $display("[OK: %m]");
-	   $write("%c[0m",27);	   
-	end
-       $finish;       
+       if (correct_output !== {N{1'b0}}) begin
+	  integer i;
+	  $display("PE,out,corr");
+	  for (i = 0; i < N; i=i+1) begin
+	     $display("%d: %b %b", i, mem[i], N-1-i);
+	  end
+	  $write("%c[1;31m",27);	   
+          $display("[ERROR: %m] bad output: %b", correct_output);
+	  $write("%c[0m",27);	   	   
+       end else begin
+	  $write("%c[1;34m",27);	   	   	   
+	  $display("[OK: %m]");
+	  $write("%c[0m",27);	   
+       end
+       $finish;
     end
 
     // GTKwave dumpfile setup
    initial
     begin
         $dumpfile("mesh.vcd");
-        $dumpvars(0,mesh_04_write_tb);
+        $dumpvars(0,mesh_tb);
     end
 endmodule
