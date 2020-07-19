@@ -1,29 +1,29 @@
- `timescale 100 ps/10 ps
+`timescale 100 ps/10 ps
 
-module mesh_04_tb ();
+module mesh_16_tb ();
    reg clk;
    reg rst;
 
    parameter DATA_WIDTH = 32;
-   parameter ADDR_WIDTH = 2;
+   parameter ADDR_WIDTH = 4;
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
-   parameter N          = 4;
-   parameter SORT_CYCLES = 4;
-   
-   wire [WIDTH:0] nanci_result [N-1:0];
-   wire [N-1:0] correct_output;
-   genvar 	  k;
+   parameter N          = 16;
+   parameter SORT_CYCLES = 21;
 
+   integer i, j;
+   genvar  k;
    
+   wire [N-1:0] correct_output;   
+   wire [WIDTH:0] nanci_result [N-1:0];   
    mesh #(.N(N),
-	  .SORT_CYCLES(SORT_CYCLES))
+	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
 	    .rst(rst));
 
     always begin
         #5 clk = ~clk;
     end
-   
+
    generate
        for (k = 0; k < N; k=k+1) begin
 	  localparam el = N-1-k;
@@ -35,8 +35,7 @@ module mesh_04_tb ();
         clk = 1'b0;
         rst = 1'b1;
         #20 rst = 1'b0;
-
-       #1000;
+       #2000;
        if (correct_output !== {N{1'b0}}) begin
 	  $write("%c[1;31m",27);	   
           $display("[ERROR: %m] bad output: %b", correct_output);
@@ -46,7 +45,7 @@ module mesh_04_tb ();
 	  $display("[OK: %m]");
 	  $write("%c[0m",27);	   
        end
-       $finish;
+       $finish;              
     end
 
     // GTKwave dumpfile setup

@@ -40,6 +40,10 @@ test: clean
 	iverilog -g2005-sv test/mesh_256_write_tb.v test/app_write_opposite.v nanci.v -o objnanci_mesh_write_256 && \
 	./objnanci_mesh_write_256
 
+sheartest: clean
+	iverilog -g2005-sv test/mesh_16_shear_tb.v test/app_read_opposite.v nanci_shearsort.v -o objnanci_mesh_16 && \
+	./objnanci_mesh_16
+
 run:
 	iverilog -Wall test/nanci_s_l_tb.v nanci.v -o objnanci_s_l && \
 	./nanci

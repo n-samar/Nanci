@@ -1,22 +1,24 @@
- `timescale 100 ps/10 ps
+`timescale 100 ps/10 ps
 
-module mesh_04_tb ();
+module mesh_256_write_tb ();
    reg clk;
    reg rst;
 
-   parameter DATA_WIDTH = 32;
-   parameter ADDR_WIDTH = 2;
+   parameter ADDR_WIDTH = 8;
+   parameter DATA_WIDTH = 8;
    parameter WIDTH      = ADDR_WIDTH + DATA_WIDTH;
-   parameter N          = 4;
-   parameter SORT_CYCLES = 4;
-   
-   wire [WIDTH:0] nanci_result [N-1:0];
-   wire [N-1:0] correct_output;
-   genvar 	  k;
+   parameter N          = 256;
+   parameter SORT_CYCLES = 112;
 
+   wire [DATA_WIDTH-1:0] mem   [N-1:0];
+   wire [N-1:0] correct_output;
    
+   genvar 	  k;
+  
    mesh #(.N(N),
-	  .SORT_CYCLES(SORT_CYCLES))
+	     .ADDR_WIDTH(ADDR_WIDTH),
+	     .DATA_WIDTH(DATA_WIDTH),
+	     .SORT_CYCLES(SORT_CYCLES))
    mesh_tb (.clk(clk),
 	    .rst(rst));
 
@@ -27,7 +29,8 @@ module mesh_04_tb ();
    generate
        for (k = 0; k < N; k=k+1) begin
 	  localparam el = N-1-k;
-	  assign correct_output[k] = (mesh_tb.GEN[k].GENIF.PE.app_init.nanci_result !== {1'b0, k[ADDR_WIDTH-1:0], el[DATA_WIDTH-1:0]}) ? 1'b1 : 1'b0;
+	  assign correct_output[k] = (mesh_tb.GEN[k].GENIF.PE.nanci_init.memory !== el[DATA_WIDTH-1:0]);
+	  assign mem[k] = mesh_tb.GEN[k].GENIF.PE.nanci_init.memory;
        end
    endgenerate
    
@@ -36,8 +39,13 @@ module mesh_04_tb ();
         rst = 1'b1;
         #20 rst = 1'b0;
 
-       #1000;
+       #7600;
        if (correct_output !== {N{1'b0}}) begin
+	  integer i;
+	  $display("PE,out,corr");
+	  for (i = 0; i < N; i=i+1) begin
+	     $display("%d: %b %b", i, mem[i], N-1-i);
+	  end
 	  $write("%c[1;31m",27);	   
           $display("[ERROR: %m] bad output: %b", correct_output);
 	  $write("%c[0m",27);	   	   
